@@ -16,12 +16,20 @@ export function AiTutorDrawer({
   lessonTitle,
   lessonSummary,
   lessonRouteId,
+  lessonLevel,
+  lessonObjectives,
+  lessonSections,
+  lessonVizTypes,
 }: {
   open: boolean;
   onClose: () => void;
   lessonTitle: string;
   lessonSummary: string;
   lessonRouteId: string;
+  lessonLevel?: string;
+  lessonObjectives?: string[];
+  lessonSections?: string[];
+  lessonVizTypes?: string[];
 }) {
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -54,6 +62,10 @@ export function AiTutorDrawer({
           lessonRouteId,
           lessonTitle,
           lessonSummary,
+          lessonLevel,
+          lessonObjectives,
+          lessonSections,
+          lessonVizTypes,
           messages: nextMessages.slice(-8),
         }),
       });

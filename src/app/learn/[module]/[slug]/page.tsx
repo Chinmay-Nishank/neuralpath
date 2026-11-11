@@ -233,6 +233,9 @@ export default async function LessonPage({
           slugPath={lesson.slug}
           lessonTitle={lesson.title}
           lessonSummary={lesson.summary}
+          lessonLevel={lesson.level}
+          lessonObjectives={lesson.objectives}
+          lessonVizTypes={lesson.vizTypes}
           toc={lesson.toc}
           headerSlot={headerSlot}
           afterProseSlot={afterProseSlot}

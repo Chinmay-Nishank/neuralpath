@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { buildTutorSystemPrompt } from '@/lib/tutor-prompt';
 
 const GROQ_CHAT_COMPLETIONS_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
@@ -9,6 +10,10 @@ const TutorRequestSchema = z.object({
   lessonRouteId: z.string().min(1).max(160),
   lessonTitle: z.string().min(1).max(200),
   lessonSummary: z.string().max(600),
+  lessonLevel: z.string().max(40).optional(),
+  lessonObjectives: z.array(z.string().max(240)).max(8).optional(),
+  lessonSections: z.array(z.string().max(140)).max(24).optional(),
+  lessonVizTypes: z.array(z.string().max(80)).max(12).optional(),
   messages: z
     .array(
       z.object({
@@ -54,7 +59,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid tutor request payload' }, { status: 400 });
   }
 
-  const { lessonTitle, lessonSummary, messages } = parsed.data;
+  const {
+    lessonRouteId,
+    lessonTitle,
+    lessonSummary,
+    lessonLevel,
+    lessonObjectives,
+    lessonSections,
+    lessonVizTypes,
+    messages,
+  } = parsed.data;
   const apiKey = process.env.GROQ_API_KEY?.trim();
 
   if (!apiKey) {
@@ -78,7 +92,16 @@ export async function POST(req: NextRequest) {
   }
 
   const model = process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL;
-  const systemPrompt = `You are the NeuralPath AI Tutor. Answer concisely, accurately, and pedagogically. Stay strictly scoped to the current lesson: "${lessonTitle}" — Summary: ${lessonSummary}. Connect math notation to code and interactive intuition without giving away quiz answers blindly; guide the learner step-by-step.`;
+  const systemPrompt = buildTutorSystemPrompt({
+    lessonRouteId,
+    lessonTitle,
+    lessonSummary,
+    lessonLevel,
+    lessonObjectives,
+    lessonSections,
+    lessonVizTypes,
+    customDirectives: process.env.GROQ_SYSTEM_PROMPT,
+  });
 
   try {
     const upstream = await fetch(GROQ_CHAT_COMPLETIONS_URL, {

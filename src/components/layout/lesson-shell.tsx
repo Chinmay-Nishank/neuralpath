@@ -20,6 +20,9 @@ export function LessonShell({
   slugPath,
   lessonTitle,
   lessonSummary,
+  lessonLevel,
+  lessonObjectives,
+  lessonVizTypes,
   toc,
   headerSlot,
   children,
@@ -30,6 +33,9 @@ export function LessonShell({
   slugPath: string;
   lessonTitle: string;
   lessonSummary: string;
+  lessonLevel?: string;
+  lessonObjectives?: string[];
+  lessonVizTypes?: string[];
   toc: TocHeading[];
   headerSlot: React.ReactNode;
   children: React.ReactNode;
@@ -37,6 +43,10 @@ export function LessonShell({
 }) {
   const { state } = useProgress();
   const [tutorOpen, setTutorOpen] = React.useState(false);
+  const lessonSections = React.useMemo(
+    () => toc.map((item) => item.title),
+    [toc]
+  );
 
   return (
     <>
@@ -78,6 +88,10 @@ export function LessonShell({
           lessonTitle={lessonTitle}
           lessonSummary={lessonSummary}
           lessonRouteId={routeId}
+          lessonLevel={lessonLevel}
+          lessonObjectives={lessonObjectives}
+          lessonSections={lessonSections}
+          lessonVizTypes={lessonVizTypes}
         />
       )}
     </>
