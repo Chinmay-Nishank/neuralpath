@@ -1,0 +1,116 @@
+---
+title: "Capstone Engineering Playbook: Scoping, Baselines & Error Analysis"
+module: "capstones"
+moduleOrder: 10
+order: 1
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 14
+prerequisites: ["classical-ml/05-cross-validation-metrics", "mlops/01-experiment-tracking"]
+objectives:
+  - "Follow a disciplined 5-step ML project lifecycle before touching deep architectures"
+  - "Establish a deterministic fast baseline and a clean leak-free validation split"
+  - "Run structured error analysis to choose the highest-leverage next improvement"
+summary: "Prepare for the 5 hands-on end-to-end capstones with an industry-standard workflow for scoping, baselining, and error analysis."
+tags: ["capstone", "playbook", "error-analysis", "baselines", "workflow"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Ship the Simplest End-to-End Pipeline First
+
+The #1 mistake in ML projects is spending two weeks tuning a complex Transformer or deep CNN before verifying data splits, evaluation metrics, or end-to-end latency.
+
+Follow the **NeuralPath 5-Step Capstone Loop**:
+1. **Frame & Freeze Metric:** pick one primary metric matching business harm (`PR-AUC`, `F1`, `RMSE`, `Faithfulness`).
+2. **Isolate Splits:** lock held-out test/eval splits *before* looking at features or prompts.
+3. **Ship Dumb + Fast Baseline:** Logistic Regression, TF-IDF, or zero-shot prompt in under 30 minutes.
+4. **Inspect Top-20 Errors:** read the worst predictions—most bugs live in labels, parsing, or leakage!
+5. **Iterate Systematically:** change one hypothesis per tracked run and verify slice stability.
+
+<Viz type="roc-pr" />
+
+<Callout type="math-deep-dive" title="Expected Calibration Error (ECE)">
+  When downstream decisions rely on predicted probabilities (e.g., routing uncertain predictions to humans), check that predicted 80% confidence truly hits ~80% empirical accuracy using reliability binning.
+</Callout>
+
+## Runnable Code: End-to-End Baseline Harness & Error Inspector
+
+<CodeRunner
+  title="Structured Error Analysis Harness for Any Classifier"
+  code={`import numpy as np
+
+texts = ["win free cash", "meeting at 3pm", "urgent click prize", "review PR #42", "free crypto reward"]
+y_true = np.array([1, 0, 1, 0, 1])
+y_prob = np.array([0.92, 0.10, 0.44, 0.38, 0.85])  # Note index 2 is a False Negative!
+
+# Sort samples by highest cross-entropy error to inspect worst failures first
+eps = 1e-12
+losses = -(y_true * np.log(y_prob + eps) + (1 - y_true) * np.log(1 - y_prob + eps))
+worst_idx = np.argsort(losses)[::-1]
+
+print("Worst predictions ranked by loss:")
+for idx in worst_idx[:3]:
+    print(f"  idx={idx} | true={y_true[idx]} prob={y_prob[idx]:.2f} loss={losses[idx]:.3f} | text={texts[idx]!r}")`}
+  libraryCode={`from sklearn.dummy import DummyClassifier
+from sklearn.metrics import accuracy_score
+import pandas as pd
+
+df = pd.read_csv("/datasets/spam_mini.csv")
+dummy = DummyClassifier(strategy="most_frequent").fit(df[["text"]], df["label"])
+print("Zero-skill majority baseline accuracy:", round(accuracy_score(df["label"], dummy.predict(df[["text"]])), 3))`}
+  exerciseStarter={`import numpy as np
+
+def top_k_error_indices(y_true, y_prob, k=2):
+    # TODO: return indices of top-k largest absolute errors |y_true - y_prob| sorted descending
+    return []`}
+  exerciseTests={`idx = top_k_error_indices([1, 0, 1, 0], [0.95, 0.85, 0.30, 0.05], k=2)
+assert idx == [1, 2]`}
+  exerciseSolution={`import numpy as np
+
+def top_k_error_indices(y_true, y_prob, k=2):
+    errs = np.abs(np.asarray(y_true, dtype=float) - np.asarray(y_prob, dtype=float))
+    return np.argsort(errs)[::-1][:k].tolist()`}
+  hint1="Compute abs(y_true - y_prob)."
+  hint2="Sort descending with np.argsort(errs)[::-1][:k].tolist()."
+/>
+
+<Quiz
+  lessonId="capstones/01-capstone-playbook"
+  questions={[
+    {
+      id: "cap0-q1",
+      type: "mcq",
+      prompt: "What should you build immediately after locking your train/validation/test splits?",
+      options: [
+        "A 12-layer hyperparameter grid search",
+        "A fast, deterministic end-to-end baseline (e.g., DummyClassifier + linear model) validating the metric pipeline",
+        "Distributed multi-GPU training",
+        "A custom CUDA kernel"
+      ],
+      answer: 1,
+      explanation: "A fast end-to-end baseline exposes broken labels, leakage, and schema bugs immediately."
+    },
+    {
+      id: "cap0-q2",
+      type: "fill-blank",
+      prompt: "Sorting validation examples by highest loss and reading them manually is called error ______.",
+      answer: "analysis",
+      acceptableAnswers: ["analysis"],
+      explanation: "Systematic error analysis reveals whether errors come from label noise, missing features, or model underfitting."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Lock evaluation splits and primary metric before experimenting with architectures.",
+    "Always benchmark against a simple deterministic baseline first.",
+    "Let top-k error analysis drive what you engineer next."
+  ]}
+/>
+

@@ -1,0 +1,131 @@
+---
+title: "Sequence Modeling with RNNs, Vanishing Gradients, LSTMs & GRUs"
+module: "nlp-transformers"
+moduleOrder: 5
+order: 3
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["deep-learning/04-backpropagation", "nlp-transformers/02-word-embeddings"]
+objectives:
+  - "Unroll a Recurrent Neural Network through time and explain Backpropagation Through Time (BPTT)"
+  - "Diagnose why repeated Jacobian multiplication triggers vanishing/exploding gradients"
+  - "Explain how LSTM cell-state highways and GRU update gates preserve long-term memory"
+summary: "Understand recurrent sequence processing, why BPTT suffers from vanishing gradients, and how gated LSTMs paved the way for Transformers."
+tags: ["rnn", "lstm", "gru", "bptt", "vanishing-gradients"]
+vizTypes: ["backprop"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Reading One Token at a Time with Hidden Memory
+
+An RNN processes a sequence $x_1, x_2, \dots, x_T$ sequentially, updating a recurrent hidden summary $h_t = \tanh(W_h h_{t-1} + W_x x_t + b)$.
+
+Two critical bottlenecks motivated Transformers:
+1. **Sequential Bottleneck:** step $t$ cannot run until step $t-1$ finishes, blocking GPU parallelization across tokens.
+2. **Vanishing Gradients:** backpropagating 100 steps multiplies $W_h^T$ 100 times—shrinking gradients toward zero if eigenvalues $< 1$, or exploding if $> 1$.
+
+<Viz type="backprop" />
+
+<Callout type="math-deep-dive" title="How LSTM Cell States Create an Additive Memory Highway">
+  Long Short-Term Memory (LSTM) introduces an explicit **cell state** $c_t$ updated additively via forget gate $f_t$ and input gate $i_t$:
+
+  <Math tex="c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t" display />
+
+  Just like ResNet skip connections, when $f_t \approx 1$, gradients flow backward across dozens of steps without multiplicative decay!
+</Callout>
+
+## Runnable Code: Vanilla RNN Step vs. PyTorch LSTM & Gradient Clipping
+
+<CodeRunner
+  title="Unrolling an RNN in NumPy & PyTorch LSTM Sequence Cell"
+  code={`import numpy as np
+
+# 1-layer Elman RNN forward unroll over 4 steps
+rng = np.random.default_rng(7)
+T, d_in, d_h = 4, 3, 5
+X = rng.normal(size=(T, d_in))
+Wx = rng.normal(0, 0.3, size=(d_in, d_h))
+Wh = rng.normal(0, 0.3, size=(d_h, d_h))
+b = np.zeros(d_h)
+
+h = np.zeros(d_h)
+states = []
+for t in range(T):
+    h = np.tanh(X[t] @ Wx + h @ Wh + b)
+    states.append(h.copy())
+
+print("Unrolled hidden states shape:", np.array(states).shape)
+print("Final hidden state:", np.round(states[-1], 3))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+lstm = nn.LSTM(input_size=16, hidden_size=32, num_layers=1, batch_first=True)
+x = torch.randn(2, 10, 16)
+out, (h_n, c_n) = lstm(x)
+
+# Standard RNN/Transformer protection against exploding gradients:
+torch.nn.utils.clip_grad_norm_(lstm.parameters(), max_norm=1.0)
+print("LSTM sequence output:", tuple(out.shape), "Final cell:", tuple(c_n.shape))`}
+  exerciseStarter={`import numpy as np
+
+def clip_grad_norm(grad, max_norm=1.0):
+    # TODO: if L2 norm(grad) > max_norm, scale grad by max_norm / norm
+    return grad`}
+  exerciseTests={`g = np.array([3.0, 4.0])  # norm = 5.0
+clipped = clip_grad_norm(g, max_norm=1.0)
+assert abs(np.linalg.norm(clipped) - 1.0) < 1e-6
+assert np.allclose(clipped, [0.6, 0.8])
+small = np.array([0.2, 0.1])
+assert np.allclose(clip_grad_norm(small, max_norm=1.0), small)`}
+  exerciseSolution={`import numpy as np
+
+def clip_grad_norm(grad, max_norm=1.0):
+    g = np.asarray(grad, dtype=float)
+    norm = float(np.linalg.norm(g))
+    if norm > max_norm:
+        return g * (max_norm / norm)
+    return g`}
+  hint1="Compute norm = float(np.linalg.norm(grad))."
+  hint2="Return g * (max_norm / norm) whenever norm > max_norm."
+/>
+
+<Quiz
+  lessonId="nlp-transformers/03-rnns-lstm-gru"
+  questions={[
+    {
+      id: "rnn-q1",
+      type: "mcq",
+      prompt: "Why did Transformers replace LSTMs as the dominant architecture for large language models?",
+      options: [
+        "LSTMs cannot handle variable-length sequences",
+        "Recurrent step dependencies prevent parallelizing token computations during training and bottleneck long-range recall into a fixed hidden vector",
+        "LSTMs use too few parameters",
+        "Transformers do not use matrix multiplication"
+      ],
+      answer: 1,
+      explanation: "Self-attention computes all pairwise token interactions in parallel and provides O(1) direct paths between distant tokens."
+    },
+    {
+      id: "rnn-q2",
+      type: "fill-blank",
+      prompt: "Training an RNN by unrolling the sequence graph across timesteps is known as Backpropagation Through ______.",
+      answer: "Time",
+      acceptableAnswers: ["time"],
+      explanation: "Backpropagation Through Time (BPTT) sums parameter gradients across every unrolled recurrent step."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "RNNs share weights across time steps but struggle with sequential bottlenecks and gradient decay.",
+    "LSTM and GRU gates add linear cell-state shortcuts to preserve gradients over longer sequences.",
+    "Always apply gradient norm clipping (max_norm=1.0) when training recurrent or deep autoregressive models."
+  ]}
+/>
+

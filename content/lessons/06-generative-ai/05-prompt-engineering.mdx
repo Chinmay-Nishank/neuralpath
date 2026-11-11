@@ -1,0 +1,143 @@
+---
+title: "Prompt Engineering & Structured Outputs (JSON Schema, Few-Shot, CoT)"
+module: "generative-ai"
+moduleOrder: 6
+order: 5
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 15
+prerequisites: ["nlp-transformers/07-gpt-decoders"]
+objectives:
+  - "Write clear, testable system prompts separating instructions, context, and untrusted inputs"
+  - "Enforce reliable JSON outputs using schema constraints and Zod/Pydantic validation"
+  - "Know when zero-shot, few-shot exemplars, and chain-of-thought reasoning help vs. hurt"
+summary: "Engineer reliable LLM interfaces using structured schemas, delimited untrusted inputs, few-shot demonstrations, and reasoning traces."
+tags: ["prompt-engineering", "structured-outputs", "json-schema", "chain-of-thought"]
+vizTypes: ["tokenizer"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Treat Prompts Like Typed APIs, Not Magic Spells
+
+Unstructured prompts asking *"please output JSON only"* frequently break downstream parsers with conversational filler (`"Here is your JSON: ..."`).
+
+Modern production systems rely on three engineering habits:
+1. **Constrained Structured Outputs:** Pass a formal JSON Schema (via provider API `response_format` or vLLM/SGLang grammar decoding) so invalid syntax is impossible at token sampling time, then validate with **Pydantic** or **Zod**.
+2. **Clear Delimiters:** Wrap untrusted user text inside XML/markdown tags (`<user_document>...</user_document>`) so instructions and data don't blur.
+3. **Few-Shot Exemplars & Verification:** Two crisp `(input -> output)` examples often outperform paragraphs of vague prose rules.
+
+<Viz type="tokenizer" />
+
+<Callout type="note" title="Do You Actually Need Fine-Tuning?">
+  Never fine-tune a model solely to enforce JSON keys or output formatting—native constrained decoding enforces schemas deterministically at zero training cost.
+</Callout>
+
+<Callout type="math-deep-dive" title="Why Chain-of-Thought Unlocks Multi-Step Computation">
+  An autoregressive Transformer allocates fixed depth (e.g., 32–80 layers) per single forward pass. Asking for intermediate scratchpad reasoning tokens effectively grants the model $O(T)$ sequential computation steps before committing to a final answer token.
+</Callout>
+
+## Runnable Code: Building & Validating Structured Prompt Payloads
+
+<CodeRunner
+  title="Typed Structured Output Validator & Few-Shot Prompt Builder"
+  code={`import json
+
+def build_prompt(task, doc, examples):
+    ex_text = "\\n".join(
+        f"Example Input: {ex['in']}\\nExample JSON: {json.dumps(ex['out'])}"
+        for ex in examples
+    )
+    return (
+        f"Task: {task}\\n\\n{ex_text}\\n\\n"
+        f"<document>\\n{doc}\\n</document>\\nRespond strictly with valid JSON."
+    )
+
+def parse_ticket(raw_json):
+    data = json.loads(raw_json)
+    assert isinstance(data.get("severity"), str) and data["severity"] in {"low", "med", "high"}
+    assert isinstance(data.get("tags"), list)
+    return data
+
+prompt = build_prompt(
+    "Classify bug report.",
+    "Checkout returns 500 on Safari.",
+    [{"in": "Typo in footer", "out": {"severity": "low", "tags": ["ui"]}}]
+)
+print(prompt)
+print("Validated:", parse_ticket('{"severity": "high", "tags": ["checkout", "500"]}'))`}
+  libraryCode={`# Generating JSON Schema deterministically using dataclasses / Python types
+import json
+
+schema = {
+    "type": "object",
+    "properties": {
+        "severity": {"type": "string", "enum": ["low", "med", "high"]},
+        "summary": {"type": "string"},
+        "needs_escalation": {"type": "boolean"},
+    },
+    "required": ["severity", "summary", "needs_escalation"],
+    "additionalProperties": False,
+}
+print("Strict JSON Schema:\n", json.dumps(schema, indent=2))`}
+  exerciseStarter={`import json
+
+def extract_valid_json(text):
+    # TODO: strip optional markdown code fences and parse JSON dict safely
+    return {}`}
+  exerciseTests={`assert extract_valid_json('{"ok": true}') == {"ok": True}
+fence = chr(96) * 3
+nl = chr(10)
+fenced = f"{fence}json{nl}" + '{"score": 95}' + f"{nl}{fence}"
+assert extract_valid_json(fenced) == {"score": 95}`}
+  exerciseSolution={`import json
+
+def extract_valid_json(text):
+    cleaned = text.strip()
+    fence = chr(96) * 3
+    if cleaned.startswith(fence):
+        lines = cleaned.splitlines()
+        cleaned = chr(10).join(lines[1:-1] if lines[-1].strip() == fence else lines[1:])
+    return json.loads(cleaned)`}
+  hint1="Strip leading/trailing whitespace first."
+  hint2="If text starts with triple backticks, drop the opening fence line and closing fence line before calling json.loads."
+/>
+
+<Quiz
+  lessonId="generative-ai/05-prompt-engineering"
+  questions={[
+    {
+      id: "pe-q1",
+      type: "mcq",
+      prompt: "What is the most reliable way to guarantee an LLM output matches a specific JSON structure in production?",
+      options: [
+        "Write 'PLEASE ONLY RETURN JSON!!' in all caps",
+        "Use schema-constrained decoding (response_format / structured outputs) backed by Zod/Pydantic validation",
+        "Increase temperature to 1.8",
+        "Fine-tune a 70B model from scratch"
+      ],
+      answer: 1,
+      explanation: "Constrained decoding masks invalid grammar tokens during sampling, guaranteeing valid JSON structure."
+    },
+    {
+      id: "pe-q2",
+      type: "fill-blank",
+      prompt: "Providing 2 to 5 concrete input-output pairs inside the prompt context is called ______-shot prompting.",
+      answer: "few",
+      acceptableAnswers: ["few"],
+      explanation: "Few-shot prompting anchors format, edge-case rules, and tone without weight updates."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Enforce JSON contracts with schema-constrained outputs and strict runtime validation (Zod/Pydantic).",
+    "Separate system instructions from untrusted user documents using explicit tags.",
+    "Use few-shot exemplars and intermediate reasoning traces before tuning complex prompt prose."
+  ]}
+/>
+

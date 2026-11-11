@@ -1,0 +1,125 @@
+---
+title: "Bias-Variance Tradeoff & Regularization (Ridge, Lasso, ElasticNet)"
+module: "classical-ml"
+moduleOrder: 2
+order: 4
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 18
+prerequisites: ["classical-ml/01-linear-regression"]
+objectives:
+  - "Decompose generalization error into Bias^2, Variance, and irreducible noise"
+  - "Diagnose underfitting vs. overfitting from training and validation curves"
+  - "Use L2 (Ridge) shrinkage and L1 (Lasso) sparsity to control model variance"
+summary: "Balance model capacity against overfitting using bias-variance decomposition and L1/L2 regularization."
+tags: ["bias-variance", "regularization", "ridge", "lasso", "overfitting"]
+vizTypes: ["bias-variance"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Too Rigid vs. Too Twitchy
+
+An overly simple model (like a straight line on a sine wave) suffers from **high bias**—it misses systematic structure regardless of how much data you collect. An overly flexible model (a degree-12 polynomial on 14 noisy points) suffers from **high variance**—it contorts wildly to chase random noise in whichever sample you drew.
+
+<GlossaryTerm term="Regularization">Regularization</GlossaryTerm> adds a gentle penalty for oversized weights so complex models stay smooth without losing expressivity.
+
+## Interactive Lab: Overfitting & Ridge Shrinkage
+
+Push **Polynomial Degree** to `10` with `N = 12`, then slowly turn up **Ridge L2 Penalty $\lambda$** to watch wild gray ensemble oscillations collapse smoothly toward the true sine curve.
+
+<Viz type="bias-variance" />
+
+<Callout type="math-deep-dive" title="L2 (Ridge) vs. L1 (Lasso) Objectives">
+  - **Ridge (L2):** $L(w) + \lambda \|w\|_2^2$ shrinks correlated weights proportionally and keeps all features small.
+  - **Lasso (L1):** $L(w) + \lambda \|w\|_1$ has sharp diamond corners on the constraint ball, driving irrelevant feature weights to **exact zero** (built-in feature selection).
+  - **ElasticNet:** combines both L1 and L2 penalties.
+</Callout>
+
+## Runnable Code: Ridge Regression Closed Form vs. scikit-learn
+
+<CodeRunner
+  title="Controlling Variance with L2 Ridge Regularization"
+  code={`import numpy as np
+
+rng = np.random.default_rng(0)
+x = np.linspace(-1, 1, 16)
+y = np.sin(np.pi * x) + rng.normal(0, 0.25, size=len(x))
+
+def poly_features(vec, deg=9):
+    return np.column_stack([vec ** d for d in range(deg + 1)])
+
+Phi = poly_features(x, 9)
+I = np.eye(Phi.shape[1])
+I[0, 0] = 0.0  # Never penalize the intercept bias!
+
+for lam in [0.0, 0.05, 1.0]:
+    w = np.linalg.solve(Phi.T @ Phi + lam * I, Phi.T @ y)
+    print(f"lambda={lam:4.2f} -> ||w||_2 = {np.linalg.norm(w[1:]):.2f}")`}
+  libraryCode={`import numpy as np
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.pipeline import make_pipeline
+
+rng = np.random.default_rng(0)
+X = rng.normal(size=(80, 10))
+y = 3.0 * X[:, 0] - 2.0 * X[:, 1] + 0.3 * rng.normal(size=80)
+
+ridge = make_pipeline(StandardScaler(), Ridge(alpha=1.0)).fit(X, y)
+lasso = make_pipeline(StandardScaler(), Lasso(alpha=0.15)).fit(X, y)
+
+print("Ridge non-zero weights:", int(np.sum(np.abs(ridge[-1].coef_) > 1e-3)))
+print("Lasso non-zero weights:", int(np.sum(np.abs(lasso[-1].coef_) > 1e-3)))`}
+  exerciseStarter={`import numpy as np
+
+def ridge_weights(X, y, lam):
+    # TODO: solve closed-form Ridge weights (X^T X + lam * I)^(-1) X^T y (no bias term)
+    return np.zeros(X.shape[1])`}
+  exerciseTests={`X = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+y = np.array([2.0, 3.0, 5.0])
+w0 = ridge_weights(X, y, 0.0)
+w_shrunk = ridge_weights(X, y, 5.0)
+assert np.linalg.norm(w_shrunk) < np.linalg.norm(w0)`}
+  exerciseSolution={`import numpy as np
+
+def ridge_weights(X, y, lam):
+    X = np.asarray(X, dtype=float)
+    d = X.shape[1]
+    return np.linalg.solve(X.T @ X + lam * np.eye(d), X.T @ y)`}
+  hint1="Form the d x d matrix X.T @ X + lam * np.eye(X.shape[1])."
+  hint2="Solve cleanly using np.linalg.solve(A, X.T @ y)."
+/>
+
+<Quiz
+  lessonId="classical-ml/04-bias-variance-regularization"
+  questions={[
+    {
+      id: "bv-q1",
+      type: "mcq",
+      prompt: "If your model achieves 99% accuracy on training data and 61% on validation data, what is your primary problem?",
+      options: ["High bias (underfitting)", "High variance (overfitting)", "Learning rate too small", "Missing intercept"],
+      answer: 1,
+      explanation: "A large train-vs-validation gap indicates overfitting (high variance)."
+    },
+    {
+      id: "bv-q2",
+      type: "fill-blank",
+      prompt: "Adding an L1 penalty to linear regression produces ______ regression, which encourages exact zero weights.",
+      answer: "Lasso",
+      acceptableAnswers: ["lasso"],
+      explanation: "Lasso (L1) yields sparse solutions by shrinking weak feature coefficients exactly to zero."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Total error equals Bias^2 + Variance + Irreducible Noise.",
+    "Use L2 (Ridge) to damp correlated weights and L1 (Lasso) when sparse feature selection helps.",
+    "Always standardize features before applying L1/L2 penalties so units do not skew shrinkage."
+  ]}
+/>
+

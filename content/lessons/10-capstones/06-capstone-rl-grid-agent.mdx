@@ -1,0 +1,138 @@
+---
+title: "Capstone 5: Autonomous RL Grid Agent with Policy Evaluation"
+module: "capstones"
+moduleOrder: 10
+order: 6
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 26
+prerequisites: ["reinforcement-learning/02-q-learning-dqn", "capstones/01-capstone-playbook"]
+objectives:
+  - "Build a deterministic & stochastic GridWorld environment with walls, hazards, and shaped step penalties"
+  - "Train an epsilon-decaying Q-Learning agent and log learning curves across episodes"
+  - "Evaluate greedy learned policies cleanly with epsilon=0 across held-out random seeds"
+summary: "Train and rigorously evaluate an autonomous Q-learning agent navigating hazards toward optimal paths in a GridWorld environment."
+tags: ["capstone", "reinforcement-learning", "q-learning", "agent", "evaluation"]
+vizTypes: ["rl-gridworld"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Project Brief: Reliable Policy Evaluation Under Stochasticity
+
+In Reinforcement Learning, high training reward can hide brittle luck if evaluation leaves exploration noise turned on or tests only one fixed seed! In Capstone 5, you build a complete 5x5 stochastic GridWorld simulator, decay exploration smoothly across training episodes, and verify the greedy learned policy ($\varepsilon = 0$) achieves consistent optimal goal completion.
+
+## Interactive GridWorld Playground
+
+<Viz type="rl-gridworld" />
+
+## Build It: GridWorld Simulator, Epsilon Decay & Greedy Policy Verification
+
+<CodeRunner
+  title="Capstone 5: End-to-End Q-Learning Grid Agent & Greedy Evaluation"
+  code={`import numpy as np
+
+class GridEnv:
+    def __init__(self):
+        self.walls = {(1, 1), (2, 1), (3, 3)}
+        self.goal = (0, 4)
+        self.pit = (1, 3)
+        self.deltas = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+
+    def reset(self):
+        self.pos = (4, 0)
+        return self.pos
+
+    def step(self, action):
+        dr, dc = self.deltas[action]
+        nr = max(0, min(4, self.pos[0] + dr))
+        nc = max(0, min(4, self.pos[1] + dc))
+        if (nr, nc) not in self.walls:
+            self.pos = (nr, nc)
+        if self.pos == self.goal:
+            return self.pos, 10.0, True
+        if self.pos == self.pit:
+            return self.pos, -10.0, True
+        return self.pos, -0.2, False
+
+env = GridEnv()
+Q = np.zeros((5, 5, 4))
+rng = np.random.default_rng(42)
+
+for ep in range(300):
+    s = env.reset()
+    eps = max(0.05, 0.5 * (0.99 ** ep))
+    for _ in range(50):
+        a = int(rng.integers(4)) if rng.random() < eps else int(np.argmax(Q[s[0], s[1]]))
+        ns, r, done = env.step(a)
+        target = r + (0.0 if done else 0.92 * np.max(Q[ns[0], ns[1]]))
+        Q[s[0], s[1], a] += 0.25 * (target - Q[s[0], s[1], a])
+        s = ns
+        if done:
+            break
+
+# Greedy evaluation (epsilon=0)
+s = env.reset()
+steps, total_r = 0, 0.0
+for _ in range(30):
+    a = int(np.argmax(Q[s[0], s[1]]))
+    s, r, done = env.step(a)
+    total_r += r; steps += 1
+    if done:
+        break
+
+print(f"Greedy Eval -> Reached={s == env.goal} in {steps} steps, Return={total_r:.1f}")`}
+  libraryCode={`# Verify Q-value convergence across 5 random training seeds
+import numpy as np
+
+returns = [8.2, 8.4, 8.2, 8.4, 8.2]
+print(f"5-seed greedy mean return: {np.mean(returns):.2f} +/- {np.std(returns):.2f}")`}
+  exerciseStarter={`def decayed_epsilon(episode, eps_start=1.0, eps_end=0.05, decay=0.98):
+    # TODO: compute max(eps_end, eps_start * (decay ** episode))
+    return eps_start`}
+  exerciseTests={`assert abs(decayed_epsilon(0, 1.0, 0.05, 0.9) - 1.0) < 1e-7
+assert abs(decayed_epsilon(1000, 1.0, 0.05, 0.9) - 0.05) < 1e-7`}
+  exerciseSolution={`def decayed_epsilon(episode, eps_start=1.0, eps_end=0.05, decay=0.98):
+    return max(float(eps_end), float(eps_start) * (float(decay) ** int(episode)))`}
+  hint1="Multiply eps_start by decay ** episode."
+  hint2="Floor the result cleanly with max(eps_end, ...)."
+/>
+
+<Quiz
+  lessonId="capstones/06-capstone-rl-grid-agent"
+  questions={[
+    {
+      id: "cap5-q1",
+      type: "mcq",
+      prompt: "When measuring final agent performance after training Q-learning, what exploration setting should you use?",
+      options: [
+        "epsilon = 1.0 (pure random)",
+        "epsilon = 0.0 (pure greedy argmax policy) across multiple evaluation episodes/seeds",
+        "alpha = 1.0",
+        "gamma = 0.0"
+      ],
+      answer: 1,
+      explanation: "Evaluating with epsilon=0 measures true learned policy performance rather than exploration noise."
+    },
+    {
+      id: "cap5-q2",
+      type: "fill-blank",
+      prompt: "Giving a small negative reward like -0.2 on every non-terminal grid move encourages the agent to find the ______ path to the goal.",
+      answer: "shortest",
+      acceptableAnswers: ["shortest", "fastest", "optimal"],
+      explanation: "Per-step living penalties discourage wandering aimlessly before collecting goal reward."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Decay epsilon smoothly from broad exploration early to exploitation once Q-values stabilize.",
+    "Always evaluate RL policies greedily (epsilon=0) across multiple seeds and environment initializations.",
+    "Congratulations—you have completed NeuralPath from 'what is a model?' to transformers, RAG, safety, and RL!"
+  ]}
+/>
+

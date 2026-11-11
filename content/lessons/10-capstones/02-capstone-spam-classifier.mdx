@@ -1,0 +1,137 @@
+---
+title: "Capstone 1: End-to-End Spam & Phishing Classifier"
+module: "capstones"
+moduleOrder: 10
+order: 2
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 25
+prerequisites: ["capstones/01-capstone-playbook", "classical-ml/06-feature-engineering"]
+objectives:
+  - "Build a full text classification pipeline combining TF-IDF n-grams and calibrated Logistic Regression"
+  - "Tune probability decision thresholds to balance missed phishing vs. false spam alerts"
+  - "Inspect top predictive n-gram weights and verify zero leakage across splits"
+summary: "Build, calibrate, threshold-tune, and audit an end-to-end spam & phishing detection system on the bundled dataset."
+tags: ["capstone", "spam-classifier", "tfidf", "nlp", "calibration"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Project Brief: High-Precision Phishing Filter
+
+In email security, flagging an urgent coworker's message as spam (False Positive) frustrates users far more than letting one borderline promotional message through—so you must tune **decision thresholds** above `0.50` and inspect model weights directly!
+
+## Interactive Threshold & Precision-Recall Check
+
+<Viz type="roc-pr" />
+
+## Build It: Scratch Naive Bayes vs. Production TF-IDF Pipeline
+
+<CodeRunner
+  title="Capstone 1: Spam Classifier (Multinomial Naive Bayes & TF-IDF Pipeline)"
+  code={`import pandas as pd, math
+from collections import Counter
+
+df = pd.read_csv("/datasets/spam_mini.csv")
+train_df = df.iloc[:10]
+test_df = df.iloc[10:]
+
+# Multinomial Naive Bayes with Laplace smoothing (alpha=1.0) from scratch
+vocab = set()
+counts = {0: Counter(), 1: Counter()}
+totals = {0: 0, 1: 0}
+priors = {0: (train_df["label"] == 0).mean(), 1: (train_df["label"] == 1).mean()}
+
+for _, row in train_df.iterrows():
+    words = row["text"].lower().split()
+    lbl = int(row["label"])
+    counts[lbl].update(words)
+    totals[lbl] += len(words)
+    vocab.update(words)
+
+V = len(vocab)
+def predict_nb(text):
+    words = text.lower().split()
+    scores = {}
+    for c in (0, 1):
+        s = math.log(priors[c] + 1e-9)
+        for w in words:
+            s += math.log((counts[c][w] + 1.0) / (totals[c] + V))
+        scores[c] = s
+    return 1 if scores[1] > scores[0] else 0
+
+preds = [predict_nb(t) for t in test_df["text"]]
+print("Scratch NB predictions:", preds, "| Truth:", test_df["label"].tolist())`}
+  libraryCode={`import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.pipeline import Pipeline
+
+df = pd.read_csv("/datasets/spam_mini.csv")
+pipe = Pipeline([
+    ("tfidf", TfidfVectorizer(ngram_range=(1, 2), lowercase=True, stop_words="english")),
+    ("clf", LogisticRegression(C=2.0, max_iter=500)),
+])
+
+cv = StratifiedKFold(n_splits=4, shuffle=True, random_state=42)
+auc = cross_val_score(pipe, df["text"], df["label"], cv=cv, scoring="roc_auc")
+pipe.fit(df["text"], df["label"])
+
+sample_probs = pipe.predict_proba(["URGENT free prize click now", "Please review the tokenizer PR"])[:, 1]
+print("4-fold CV ROC-AUC:", round(float(auc.mean()), 3))
+print("Test probabilities [spam, ham]:", sample_probs.round(3))`}
+  exerciseStarter={`import numpy as np
+
+def classify_with_threshold(probs, thresh=0.75):
+    # TODO: return integer array of 1s where prob >= thresh else 0
+    return np.zeros(len(probs), dtype=int)`}
+  exerciseTests={`out = classify_with_threshold([0.40, 0.74, 0.75, 0.98], thresh=0.75)
+assert np.array_equal(out, [0, 0, 1, 1])`}
+  exerciseSolution={`import numpy as np
+
+def classify_with_threshold(probs, thresh=0.75):
+    return (np.asarray(probs, dtype=float) >= float(thresh)).astype(int)`}
+  hint1="Compare np.asarray(probs) >= thresh."
+  hint2="Convert boolean mask to integer 0/1 with .astype(int)."
+/>
+
+<Quiz
+  lessonId="capstones/02-capstone-spam-classifier"
+  questions={[
+    {
+      id: "cap1-q1",
+      type: "mcq",
+      prompt: "Why should TfidfVectorizer sit inside a scikit-learn Pipeline during cross-validation?",
+      options: [
+        "It speeds up disk loading",
+        "To prevent vocabulary and IDF document-frequency statistics from leaking across validation folds",
+        "LogisticRegression cannot read strings otherwise",
+        "It lowers threshold below 0.5"
+      ],
+      answer: 1,
+      explanation: "Fitting TF-IDF outside cross-validation leaks test n-gram frequencies into training."
+    },
+    {
+      id: "cap1-q2",
+      type: "fill-blank",
+      prompt: "Adding +1 pseudo-counts to every word frequency in Naive Bayes so unseen test words never cause log(0) is called ______ smoothing.",
+      answer: "Laplace",
+      acceptableAnswers: ["laplace", "additive"],
+      explanation: "Laplace (additive) smoothing guards against zero-probability collapse on unseen tokens."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "TF-IDF (1,2)-grams + regularized Logistic Regression gives a lightning-fast, inspectable text baseline.",
+    "Raise probability thresholds above 0.50 whenever False Positives carry heavy UX cost.",
+    "Always keep vectorizers inside Pipelines to protect cross-validation integrity."
+  ]}
+/>
+

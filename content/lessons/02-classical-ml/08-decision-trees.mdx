@@ -1,0 +1,131 @@
+---
+title: "Decision Trees: Gini Impurity, Entropy & Pruning"
+module: "classical-ml"
+moduleOrder: 2
+order: 8
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["classical-ml/05-cross-validation-metrics"]
+objectives:
+  - "Compute Gini impurity and Shannon entropy to score candidate split thresholds"
+  - "Understand why trees create axis-aligned rectangular boundaries invariant to monotonic scaling"
+  - "Control tree overfitting with max_depth, min_samples_leaf, and cost-complexity pruning"
+summary: "Build intuition for recursive axis-aligned partitioning using Gini impurity and depth constraints."
+tags: ["decision-trees", "gini-impurity", "entropy", "pruning"]
+vizTypes: ["decision-boundary"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Playing 20 Questions with Your Features
+
+A decision tree asks a sequence of crisp threshold questions (`petal_length <= 2.45?`) to split mixed examples into pure leaf buckets. Unlike linear models or SVMs, decision trees are **invariant to monotonic feature scaling** (multiplying dollars by 100 doesn't change split order) and naturally capture non-linear feature thresholds.
+
+## Interactive Lab: Axis-Aligned Rectangular Regions
+
+Select **Decision Tree (Axis-aligned)** below and change **Max Tree Depth** from `1` to `6`. Notice how splits are strictly horizontal and vertical steps!
+
+<Viz type="decision-boundary" defaultModel="tree" />
+
+<Callout type="math-deep-dive" title="Gini Impurity & Information Gain">
+  For a node with class proportions $p_1, \dots, p_C$:
+
+  <Math tex="G(t) = 1 - \sum_{c=1}^{C} p_c^2" display />
+
+  A completely pure node ($p_k = 1$) has $G = 0$. Each split chooses feature $j$ and threshold $\tau$ maximizing weighted impurity reduction:
+
+  <Math tex="\Delta G = G_{\text{parent}} - \left(\frac{N_L}{N} G_L + \frac{N_R}{N} G_R\right)" display />
+</Callout>
+
+## Runnable Code: Gini Impurity Splitter vs. DecisionTreeClassifier
+
+<CodeRunner
+  title="Finding the Optimal Gini Split From Scratch & scikit-learn"
+  code={`import numpy as np
+
+def gini(y):
+    if len(y) == 0:
+        return 0.0
+    _, counts = np.unique(y, return_counts=True)
+    probs = counts / len(y)
+    return float(1.0 - np.sum(probs ** 2))
+
+x = np.array([1.2, 1.8, 2.3, 4.1, 4.8, 5.2])
+y = np.array([0, 0, 0, 1, 1, 1])
+
+parent_g = gini(y)
+best_gain, best_t = -1.0, None
+for t in np.unique(x)[:-1]:
+    left = y[x <= t]
+    right = y[x > t]
+    gain = parent_g - (len(left)/len(y))*gini(left) - (len(right)/len(y))*gini(right)
+    if gain > best_gain:
+        best_gain, best_t = gain, float(t)
+
+print(f"Best split threshold <= {best_t}, Gini gain = {best_gain:.4f}")`}
+  libraryCode={`import pandas as pd
+from sklearn.model_selection import cross_val_score
+from sklearn.tree import DecisionTreeClassifier
+
+df = pd.read_csv("/datasets/iris_mini.csv")
+X = df[["sepal_length", "sepal_width", "petal_length", "petal_width"]]
+y = df["species"]
+
+for depth in [1, 2, 4]:
+    tree = DecisionTreeClassifier(max_depth=depth, min_samples_leaf=2, random_state=42)
+    acc = cross_val_score(tree, X, y, cv=3).mean()
+    print(f"max_depth={depth} -> 3-fold CV accuracy: {acc:.3f}")`}
+  exerciseStarter={`import numpy as np
+
+def gini_impurity(labels):
+    # TODO: compute 1 - sum(p_c ** 2) for 1D array of integer class labels
+    return 0.0`}
+  exerciseTests={`assert abs(gini_impurity(np.array([1, 1, 1])) - 0.0) < 1e-7
+assert abs(gini_impurity(np.array([0, 1, 0, 1])) - 0.5) < 1e-7`}
+  exerciseSolution={`import numpy as np
+
+def gini_impurity(labels):
+    labels = np.asarray(labels)
+    if len(labels) == 0:
+        return 0.0
+    _, counts = np.unique(labels, return_counts=True)
+    probs = counts / len(labels)
+    return float(1.0 - np.sum(probs ** 2))`}
+  hint1="Use np.unique(labels, return_counts=True) to get counts per class."
+  hint2="Normalize counts by len(labels) and return 1.0 - np.sum(probs ** 2)."
+/>
+
+<Quiz
+  lessonId="classical-ml/08-decision-trees"
+  questions={[
+    {
+      id: "dt-q1",
+      type: "mcq",
+      prompt: "What is the Gini impurity of a leaf node containing 50% Class A and 50% Class B samples?",
+      options: ["0.0", "0.25", "0.5", "1.0"],
+      answer: 2,
+      explanation: "1 - (0.5^2 + 0.5^2) = 1 - 0.5 = 0.5 (maximum impurity for 2 classes)."
+    },
+    {
+      id: "dt-q2",
+      type: "fill-blank",
+      prompt: "Setting ______ limits how many sequential splits a decision tree can grow from root to leaf.",
+      answer: "max_depth",
+      acceptableAnswers: ["max_depth", "depth"],
+      explanation: "max_depth caps tree depth to prevent memorizing noisy training regions."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Decision trees partition space orthogonally by greedily maximizing impurity reduction.",
+    "Single unpruned trees have low bias but dangerously high variance.",
+    "Tree splits require no feature scaling, unlike gradient descent or distance-based models."
+  ]}
+/>
+

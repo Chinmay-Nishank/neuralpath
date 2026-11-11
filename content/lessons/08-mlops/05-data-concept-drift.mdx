@@ -1,0 +1,120 @@
+---
+title: "Data Drift, Concept Drift, PSI / KS Tests & Retraining Triggers"
+module: "mlops"
+moduleOrder: 8
+order: 5
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 17
+prerequisites: ["foundations/07-probability-statistics", "mlops/04-monitoring-observability"]
+objectives:
+  - "Distinguish covariate shift / data drift P(X) from concept drift P(Y|X)"
+  - "Compute Population Stability Index (PSI) and Kolmogorov-Smirnov (KS) drift statistics"
+  - "Design safe automated retraining vs. human-reviewed shadow rollout triggers"
+summary: "Detect silent accuracy decay in production models before business metrics suffer using PSI, KS tests, and drift-triggered retraining."
+tags: ["data-drift", "concept-drift", "psi", "ks-test", "monitoring"]
+vizTypes: ["probability"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Models Age Even When Code Never Changes
+
+Unlike classic backend APIs, a deployed ML model can degrade silently while returning `HTTP 200 OK`! Why? The world shifts beneath it:
+- **<GlossaryTerm term="Data Drift">Data Drift (Covariate Shift)</GlossaryTerm>:** input feature distribution $P(X)$ shifts (e.g., inflation raises average transaction amounts, or mobile cameras upgrade resolution).
+- **Concept Drift:** the relationship $P(Y \mid X)$ itself shifts (e.g., fraudsters invent new scams, or consumer demand shifts post-holiday).
+
+Because ground-truth labels $Y$ often arrive days or weeks late, **PSI** and **KS tests** monitor $P(X)$ continuously as an early warning radar!
+
+<Viz type="probability" />
+
+<Callout type="math-deep-dive" title="Population Stability Index (PSI)">
+  Bin baseline training proportions $b_i$ and live serving proportions $c_i$ across $B$ quantile buckets:
+
+  <Math tex="\text{PSI} = \sum_{i=1}^{B} (c_i - b_i)\,\ln\!\left(\frac{c_i}{b_i}\right)" display />
+
+  Rule-of-thumb thresholds: $\text{PSI} < 0.10$ (stable), $0.10 \le \text{PSI} < 0.25$ (moderate shift—investigate), $\text{PSI} \ge 0.25$ (significant shift—trigger evaluation/retraining).
+</Callout>
+
+## Runnable Code: PSI Drift Calculator & Two-Sample KS Test
+
+<CodeRunner
+  title="Detecting Covariate Shift with PSI & SciPy KS-Test"
+  code={`import numpy as np
+
+def compute_psi(expected_counts, actual_counts, eps=1e-6):
+    e = np.asarray(expected_counts, dtype=float)
+    a = np.asarray(actual_counts, dtype=float)
+    p = np.maximum(e / e.sum(), eps)
+    q = np.maximum(a / a.sum(), eps)
+    return float(np.sum((q - p) * np.log(q / p)))
+
+train_bins = [250, 250, 250, 250]
+stable_live = [245, 255, 240, 260]
+drifted_live = [80, 140, 310, 470]
+
+print("PSI (stable traffic) :", round(compute_psi(train_bins, stable_live), 4))
+print("PSI (drifted traffic):", round(compute_psi(train_bins, drifted_live), 4))`}
+  libraryCode={`import numpy as np
+from scipy.stats import ks_2samp
+
+rng = np.random.default_rng(7)
+baseline = rng.normal(loc=0.0, scale=1.0, size=300)
+shifted = rng.normal(loc=0.6, scale=1.1, size=300)
+
+stat, p_val = ks_2samp(baseline, shifted)
+print(f"KS Statistic={stat:.3f}, p-value={p_val:.2e} -> Drift detected={p_val < 0.01}")`}
+  exerciseStarter={`def psi_status(psi_value):
+    # TODO: return "stable" (<0.1), "moderate" (<0.25), or "significant" (>=0.25)
+    return "stable"`}
+  exerciseTests={`assert psi_status(0.04) == "stable"
+assert psi_status(0.15) == "moderate"
+assert psi_status(0.32) == "significant"`}
+  exerciseSolution={`def psi_status(psi_value):
+    if psi_value < 0.10:
+        return "stable"
+    if psi_value < 0.25:
+        return "moderate"
+    return "significant"`}
+  hint1="Check thresholds 0.10 and 0.25 in ascending order."
+  hint2="Return exact strings 'stable', 'moderate', or 'significant'."
+/>
+
+<Quiz
+  lessonId="mlops/05-data-concept-drift"
+  questions={[
+    {
+      id: "drift-q1",
+      type: "mcq",
+      prompt: "Which scenario illustrates Concept Drift rather than pure Covariate Shift?",
+      options: [
+        "Users switch from desktop browsers to mobile phones",
+        "For the exact same customer profile and purchase amount, fraud likelihood jumps because attackers adopted a new exploit",
+        "Camera contrast slightly decreases",
+        "A CSV column changes from float32 to float64"
+      ],
+      answer: 1,
+      explanation: "Concept drift changes the conditional target mapping P(Y|X) even for identical inputs X."
+    },
+    {
+      id: "drift-q2",
+      type: "fill-blank",
+      prompt: "A Population Stability Index (PSI) exceeding ______ generally signals significant distribution shift requiring investigation or retraining.",
+      answer: "0.25",
+      acceptableAnswers: ["0.25", ".25"],
+      explanation: "Standard PSI thresholds treat >= 0.25 as major shift and 0.10-0.25 as moderate shift."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Monitor feature distributions P(X) via PSI/KS tests whenever ground-truth labels lag behind predictions.",
+    "Distinguish covariate shift P(X) from concept drift P(Y|X) before deciding whether to reweight or relabel data.",
+    "Never deploy automated retraining directly to 100% traffic without passing golden regression eval gates."
+  ]}
+/>
+

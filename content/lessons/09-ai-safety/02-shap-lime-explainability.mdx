@@ -1,0 +1,135 @@
+---
+title: "Feature Attribution: SHAP Values, LIME & Permutation Importance"
+module: "ai-safety"
+moduleOrder: 9
+order: 2
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 17
+prerequisites: ["classical-ml/09-random-forests-gradient-boosting"]
+objectives:
+  - "Explain individual predictions locally using additive SHAP Shapley values and LIME perturbations"
+  - "Distinguish global Permutation Importance from local per-prediction feature attributions"
+  - "Spot correlation traps where collinear features split attribution or create unrealistic perturbations"
+summary: "Open the tabular black box using Shapley (SHAP) attributions, local LIME surrogates, and permutation importance."
+tags: ["shap", "lime", "explainability", "xai", "feature-importance"]
+vizTypes: ["shap"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Fairly Crediting Every Feature for a Single Decision
+
+When a loan classifier rejects an applicant with probability `0.78`, stakeholders ask *"why this specific prediction?"*
+
+Three core attribution tools answer different questions:
+1. **Permutation Importance (Global):** randomly shuffle one feature column on validation data and measure how much accuracy drops—exposing which features the model relies on globally.
+2. **LIME (Local Surrogate):** generate synthetic neighbors around one specific point $x$, query the black-box model, and fit a simple interpretable linear ridge model locally.
+3. **<GlossaryTerm term="SHAP">SHAP (Shapley Values)</GlossaryTerm>:** averages each feature's marginal contribution across *all possible subsets (coalitions)* of co-occurring features—the unique game-theoretic solution guaranteeing exact additivity:
+
+<Math tex="f(x) = \mathbb{E}[f(X)] + \sum_{j=1}^d \phi_j(x)" display />
+
+## Interactive Lab: SHAP Waterfall Attribution Explorer
+
+Adjust feature contributions below to see how additive Shapley bars stack directly from the dataset baseline $E[f(x)] = 0.35$ to the exact prediction $f(x)$.
+
+<Viz type="shap" />
+
+<Callout type="warning" title="Correlated Features Trick Impurity & Permutation Checks">
+  If two features (`height_cm` and `height_inches`) are identical, permutation importance splits credit—or drops both near zero because the unshuffled twin covers for the shuffled column! Inspect collinearity first.
+</Callout>
+
+## Runnable Code: Exact Shapley Coalition Attribution & Permutation Importance
+
+<CodeRunner
+  title="Exact Shapley Attribution From Scratch & Permutation Importance"
+  code={`import itertools, math, numpy as np
+
+# Model: f(x) = 2.0*x0 + 3.0*x1 + 1.5*x0*x1 (non-linear interaction!)
+def model_fn(x):
+    return 2.0 * x[0] + 3.0 * x[1] + 1.5 * x[0] * x[1]
+
+baseline = np.array([0.0, 0.0])
+target = np.array([1.0, 2.0])
+d = 2
+shap_vals = np.zeros(d)
+
+for j in range(d):
+    others = [k for k in range(d) if k != j]
+    for r in range(len(others) + 1):
+        for subset in itertools.combinations(others, r):
+            weight = math.factorial(len(subset)) * math.factorial(d - len(subset) - 1) / math.factorial(d)
+            x_without = baseline.copy()
+            for idx in subset:
+                x_without[idx] = target[idx]
+            x_with = x_without.copy()
+            x_with[j] = target[j]
+            shap_vals[j] += weight * (model_fn(x_with) - model_fn(x_without))
+
+print("Base f(0):", model_fn(baseline), "| Target f(x):", model_fn(target))
+print("Exact SHAP values:", np.round(shap_vals, 4), "| Sum == f(x) - f(0):", round(float(shap_vals.sum()), 4))`}
+  libraryCode={`from sklearn.datasets import make_classification
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
+from sklearn.model_selection import train_test_split
+
+X, y = make_classification(n_samples=250, n_features=5, n_informative=2, n_redundant=0, random_state=42)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, random_state=42)
+clf = RandomForestClassifier(n_estimators=40, random_state=42).fit(X_tr, y_tr)
+
+perm = permutation_importance(clf, X_te, y_te, n_repeats=10, random_state=42)
+print("Permutation importance means:", perm.importances_mean.round(3))`}
+  exerciseStarter={`import numpy as np
+
+def check_shap_efficiency(baseline_pred, instance_pred, shap_values, tol=1e-5):
+    # TODO: verify sum(shap_values) + baseline_pred equals instance_pred within tol
+    return False`}
+  exerciseTests={`assert check_shap_efficiency(0.35, 0.80, np.array([0.25, 0.30, -0.10])) is True
+assert check_shap_efficiency(0.35, 0.80, np.array([0.10, 0.10])) is False`}
+  exerciseSolution={`import numpy as np
+
+def check_shap_efficiency(baseline_pred, instance_pred, shap_values, tol=1e-5):
+    reconstructed = float(baseline_pred) + float(np.sum(shap_values))
+    return abs(reconstructed - float(instance_pred)) <= tol`}
+  hint1="Add baseline_pred and np.sum(shap_values)."
+  hint2="Compare abs(reconstructed - instance_pred) <= tol."
+/>
+
+<Quiz
+  lessonId="ai-safety/02-shap-lime-explainability"
+  questions={[
+    {
+      id: "xai-q1",
+      type: "mcq",
+      prompt: "What unique property separates Shapley (SHAP) values from naive gradient saliency or Gini importance?",
+      options: [
+        "SHAP requires zero baseline",
+        "Exact Efficiency: local feature attributions sum precisely to f(x) - E[f(X)] across coalitions",
+        "SHAP only works on images",
+        "SHAP ignores feature interactions"
+      ],
+      answer: 1,
+      explanation: "Shapley axioms (efficiency, symmetry, dummy, additivity) guarantee exact decomposition from baseline to prediction."
+    },
+    {
+      id: "xai-q2",
+      type: "fill-blank",
+      prompt: "Shuffling one feature column at a time on a held-out test set and measuring accuracy drop computes ______ importance.",
+      answer: "permutation",
+      acceptableAnswers: ["permutation"],
+      explanation: "Permutation importance measures global dependence without retraining the model."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Use SHAP for exact additive local explanations (TreeSHAP runs in milliseconds on tree ensembles).",
+    "Run Permutation Importance strictly on held-out validation/test data rather than training data.",
+    "Remember feature attributions explain model behavior—not real-world causality!"
+  ]}
+/>
+

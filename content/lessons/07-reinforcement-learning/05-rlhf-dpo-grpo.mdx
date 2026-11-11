@@ -1,0 +1,126 @@
+---
+title: "Post-Training Alignment: RLHF, Direct Preference Optimization (DPO) & GRPO"
+module: "reinforcement-learning"
+moduleOrder: 7
+order: 5
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 22
+prerequisites: ["reinforcement-learning/04-ppo", "generative-ai/07-fine-tuning-lora-qlora"]
+objectives:
+  - "Trace the 3-stage classic RLHF pipeline (SFT -> Reward Model -> PPO with KL penalty)"
+  - "Implement Direct Preference Optimization (DPO) from chosen-vs-rejected response pairs"
+  - "Understand Group Relative Policy Optimization (GRPO) for critic-free reasoning RL"
+summary: "See how frontier LLMs align with human preferences and verifiable reasoning using RLHF, DPO, and critic-free GRPO."
+tags: ["rlhf", "dpo", "grpo", "alignment", "post-training", "reasoning"]
+vizTypes: ["rl-gridworld"]
+colabNotebook: "notebooks/reinforcement-learning/dpo-grpo.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Teaching Helpful, Safe, and Reasoning Behavior
+
+Pretraining teaches next-token probability on internet text; **post-training alignment** teaches a model *how* to answer helpfully, refuse harm, and verify multi-step reasoning.
+
+Three milestones define modern LLM post-training:
+1. **Classic RLHF (InstructGPT):** Train SFT -> train a separate **Reward Model** on human preference pairs -> run **PPO** while adding a KL penalty against the reference SFT policy so the model doesn't game reward with gibberish.
+2. **<GlossaryTerm term="DPO">DPO (Direct Preference Optimization)</GlossaryTerm>:** Proves mathematically that the optimal RLHF policy has a closed-form mapping to the reward function—eliminating both the separate Reward Model and PPO loop completely!
+3. **GRPO (Group Relative Policy Optimization):** Powers reasoning models (like DeepSeek-R1): sample a **group** of $G$ rollouts per prompt, score them against deterministic code/math verifiers (or reward models), and normalize advantages relative to the **group mean**—removing the memory-heavy Critic network entirely!
+
+<Viz type="rl-gridworld" />
+
+<Callout type="math-deep-dive" title="DPO Loss vs. GRPO Group Advantage">
+  For chosen response $y_w$ and rejected response $y_l$ given reference policy $\pi_{\text{ref}}$:
+  <Math tex="\mathcal{L}_{\text{DPO}}(\theta) = -\log \sigma\!\left(\beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\text{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\text{ref}}(y_l \mid x)}\right)" display />
+  In **GRPO**, given group rewards $\{r_1, \dots, r_G\}$ for prompt $x$, each rollout gets advantage $A_i = (r_i - \bar{r}) / (\sigma_r + \epsilon)$ with zero critic model VRAM!
+</Callout>
+
+## Runnable Code: Implementing DPO Loss & GRPO Group Advantages
+
+<CodeRunner
+  title="Implementing DPO Preference Loss & GRPO Group Normalization"
+  code={`import numpy as np
+
+# 1. DPO preference margin loss
+def dpo_loss(pi_w, pi_l, ref_w, ref_l, beta=0.1):
+    # Inputs are sequence sum log-probabilities
+    logits = beta * ((pi_w - ref_w) - (pi_l - ref_l))
+    return float(-np.log(1.0 / (1.0 + np.exp(-logits))))
+
+# Model assigns higher relative likelihood to chosen y_w than rejected y_l
+print("DPO loss (good separation):", round(dpo_loss(-12.0, -25.0, -14.0, -18.0, beta=0.1), 4))
+
+# 2. GRPO critic-free group normalization across 4 sampled reasoning chains
+group_rewards = np.array([1.0, 0.0, 1.0, 0.0])  # e.g., verifiable unit test pass/fail
+grpo_adv = (group_rewards - group_rewards.mean()) / (group_rewards.std() + 1e-8)
+print("GRPO group advantages:", np.round(grpo_adv, 3))`}
+  libraryCode={`import torch
+import torch.nn.functional as F
+
+def torch_dpo_loss(pi_logp_w, pi_logp_l, ref_logp_w, ref_logp_l, beta=0.1):
+    log_ratio_w = pi_logp_w - ref_logp_w
+    log_ratio_l = pi_logp_l - ref_logp_l
+    return -F.logsigmoid(beta * (log_ratio_w - log_ratio_l)).mean()
+
+loss = torch_dpo_loss(
+    torch.tensor([-10.0, -8.0]),
+    torch.tensor([-15.0, -12.0]),
+    torch.tensor([-11.0, -9.0]),
+    torch.tensor([-12.0, -10.0]),
+)
+print("PyTorch DPO batch loss:", round(loss.item(), 4))`}
+  exerciseStarter={`import numpy as np
+
+def grpo_advantages(rewards):
+    # TODO: compute (r - mean(r)) / (std(r) + 1e-8) across group rollouts
+    return rewards`}
+  exerciseTests={`adv = grpo_advantages(np.array([1.0, 1.0, 0.0, 0.0]))
+assert np.allclose(adv, [1.0, 1.0, -1.0, -1.0], atol=1e-6)`}
+  exerciseSolution={`import numpy as np
+
+def grpo_advantages(rewards):
+    r = np.asarray(rewards, dtype=float)
+    return (r - np.mean(r)) / (np.std(r) + 1e-8)`}
+  hint1="Compute group mean and std with np.mean(r) and np.std(r)."
+  hint2="Return (r - mean) / (std + 1e-8)."
+/>
+
+<Quiz
+  lessonId="reinforcement-learning/05-rlhf-dpo-grpo"
+  questions={[
+    {
+      id: "align-q1",
+      type: "mcq",
+      prompt: "How does GRPO save substantial GPU memory compared to classic PPO during RL fine-tuning of LLMs?",
+      options: [
+        "It freezes the entire transformer",
+        "It replaces the separate learned Critic/Value model with relative baseline normalization across a sampled group of outputs",
+        "It removes attention layers",
+        "It quantizes gradients to 1 bit"
+      ],
+      answer: 1,
+      explanation: "Sampling G responses per prompt and normalizing rewards against the group mean eliminates needing an extra multi-billion-parameter critic."
+    },
+    {
+      id: "align-q2",
+      type: "fill-blank",
+      prompt: "In RLHF and DPO, regularizing against a frozen ______ policy prevents the aligned model from drifting into degenerate high-reward gibberish.",
+      answer: "reference",
+      acceptableAnswers: ["reference", "sft", "ref"],
+      explanation: "The KL divergence penalty against pi_ref anchors fluency and diversity."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Run Supervised Fine-Tuning (SFT) before preference optimization (DPO) or reasoning RL (GRPO).",
+    "DPO optimizes chosen-vs-rejected preferences directly without needing a separate reward model or RL rollout loop.",
+    "GRPO drops the memory-heavy critic network by scoring groups of sampled rollouts against verifiable rewards."
+  ]}
+/>
+

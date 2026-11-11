@@ -1,0 +1,136 @@
+---
+title: "Logistic Regression & Binary Classification"
+module: "classical-ml"
+moduleOrder: 2
+order: 3
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["classical-ml/02-gradient-descent"]
+objectives:
+  - "Transform unbounded linear logits into calibrated probabilities with the sigmoid function"
+  - "Derive binary cross-entropy loss and notice its clean gradient (y_hat - y) * x"
+  - "Recognize why linear classifiers fail on non-linear XOR or moon datasets"
+summary: "Build logistic regression from scratch using log-odds, sigmoid probability mapping, and binary cross-entropy optimization."
+tags: ["logistic-regression", "classification", "sigmoid", "cross-entropy"]
+vizTypes: ["decision-boundary"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Squashing Logits into Valid Probabilities
+
+Linear regression predicts unbounded numbers $(-\infty, +\infty)$, which breaks when predicting probabilities $P(y = 1 \mid x) \in [0, 1]$. **Logistic regression** passes a linear score $z = w^T x + b$ (the *log-odds*) through the **sigmoid** curve:
+
+<Math tex="\hat{p} = \sigma(z) = \frac{1}{1 + e^{-z}}" display />
+
+Notice that logistic regression still draws a **straight hyperplane boundary** where $w^T x + b = 0$ ($\hat{p} = 0.5$).
+
+## Interactive Lab: Inspecting a Linear Decision Boundary
+
+Select **Logistic Regression (Linear)** below on **Two Moons** or **XOR**, then contrast it with **RBF Kernel SVM** to see exactly where linearity hits a wall.
+
+<Viz type="decision-boundary" defaultModel="logistic" />
+
+<Callout type="math-deep-dive" title="Binary Cross-Entropy Loss & Gradient">
+  Minimizing negative log-likelihood gives Binary Cross-Entropy (Log Loss):
+
+  <Math tex="L(w, b) = -\frac{1}{N} \sum_{i=1}^N \Big[ y_i \log \hat{p}_i + (1 - y_i) \log(1 - \hat{p}_i) \Big]" display />
+
+  Remarkably, combining sigmoid with log loss simplifies the gradient to:
+  <Math tex="\nabla_w L = \frac{1}{N} X^T (\hat{p} - y)" display />
+</Callout>
+
+## Runnable Code: Logistic Regression From Scratch vs. scikit-learn
+
+<CodeRunner
+  title="Binary Logistic Regression with Gradient Descent"
+  code={`import numpy as np
+
+rng = np.random.default_rng(1)
+X0 = rng.normal(loc=[-1.2, -1.0], scale=0.7, size=(40, 2))
+X1 = rng.normal(loc=[1.2, 1.0], scale=0.7, size=(40, 2))
+X = np.vstack([X0, X1])
+y = np.array([0] * 40 + [1] * 40, dtype=float)
+
+w = np.zeros(2)
+b = 0.0
+for _ in range(300):
+    z = X @ w + b
+    p = 1.0 / (1.0 + np.exp(-np.clip(z, -20, 20)))
+    err = p - y
+    w -= 0.2 * (X.T @ err) / len(y)
+    b -= 0.2 * np.mean(err)
+
+acc = np.mean((1.0 / (1.0 + np.exp(-(X @ w + b))) >= 0.5) == y)
+print(f"Weights: {w.round(3)}, Bias: {b:.3f}, Accuracy: {acc:.2%}")`}
+  libraryCode={`from sklearn.datasets import make_moons
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+
+X, y = make_moons(n_samples=160, noise=0.18, random_state=42)
+linear_clf = LogisticRegression().fit(X, y)
+poly_clf = make_pipeline(PolynomialFeatures(3), LogisticRegression()).fit(X, y)
+
+print("Linear Logistic accuracy on moons:", round(linear_clf.score(X, y), 3))
+print("Degree-3 Poly Logistic accuracy:", round(poly_clf.score(X, y), 3))`}
+  exerciseStarter={`import numpy as np
+
+def binary_cross_entropy(y_true, y_prob):
+    # TODO: compute mean(-y * log(p) - (1 - y) * log(1 - p)) clipped to [1e-12, 1-1e-12]
+    return 0.0`}
+  exerciseTests={`y = np.array([1.0, 0.0])
+p_good = np.array([0.9, 0.1])
+p_bad = np.array([0.1, 0.9])
+assert binary_cross_entropy(y, p_good) < 0.15
+assert binary_cross_entropy(y, p_bad) > 2.0`}
+  exerciseSolution={`import numpy as np
+
+def binary_cross_entropy(y_true, y_prob):
+    y_true = np.asarray(y_true, dtype=float)
+    p = np.clip(np.asarray(y_prob, dtype=float), 1e-12, 1.0 - 1e-12)
+    return float(-np.mean(y_true * np.log(p) + (1.0 - y_true) * np.log(1.0 - p)))`}
+  hint1="Always clip probabilities with np.clip(y_prob, 1e-12, 1 - 1e-12) before taking log."
+  hint2="Average -(y_true * np.log(p) + (1 - y_true) * np.log(1 - p))."
+/>
+
+<Quiz
+  lessonId="classical-ml/03-logistic-regression"
+  questions={[
+    {
+      id: "log-q1",
+      type: "mcq",
+      prompt: "Why do we train logistic regression with Binary Cross-Entropy instead of Mean Squared Error on sigmoid outputs?",
+      options: [
+        "MSE is non-convex when paired with sigmoid, causing flat saturated gradients",
+        "MSE cannot handle binary targets 0 and 1",
+        "Cross-entropy removes the bias term",
+        "Sigmoid only outputs integers"
+      ],
+      answer: 0,
+      explanation: "Sigmoid + MSE produces a non-convex loss with tiny gradients when confident and wrong; cross-entropy cancels the sigmoid derivative."
+    },
+    {
+      id: "log-q2",
+      type: "code-completion",
+      prompt: "Write the NumPy sigmoid activation for array z:",
+      codeSnippet: "p = 1.0 / (1.0 + _____)",
+      answer: "np.exp(-z)",
+      acceptableAnswers: ["np.exp(-z)", "np.exp(- z)"],
+      explanation: "The logistic sigmoid is 1 / (1 + exp(-z))."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Logistic regression maps linear scores to calibrated probabilities via the sigmoid function.",
+    "Decision boundaries in raw feature space remain strictly linear unless non-linear features are added.",
+    "Cross-entropy loss ensures convex optimization and strong gradients when predictions are confidently wrong."
+  ]}
+/>
+

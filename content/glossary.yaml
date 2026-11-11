@@ -1,0 +1,203 @@
+- term: Model
+  aliases: ["statistical model", "predictive model"]
+  definition: A parameterized mathematical function f(x; θ) that maps input features x to predicted outputs ŷ using parameters θ learned from data.
+  lessonUrl: /learn/foundations/01-what-is-a-model
+
+- term: Vectorization
+  aliases: ["vectorized", "SIMD"]
+  definition: Expressing element-wise or matrix computations as single array operations executed in compiled C/SIMD loops instead of interpreted Python for-loops.
+  lessonUrl: /learn/foundations/03-numpy-arrays
+
+- term: Broadcasting
+  aliases: ["NumPy broadcasting"]
+  definition: NumPy's rules for performing arithmetic on arrays of different shapes by virtually stretching dimensions of size 1 without copying memory.
+  lessonUrl: /learn/foundations/03-numpy-arrays
+
+- term: Gradient
+  aliases: ["partial gradient", "nabla"]
+  definition: The vector of partial derivatives of a scalar function with respect to each parameter, pointing in the direction of steepest ascent.
+  formula: '\nabla_\theta L(\theta)'
+  lessonUrl: /learn/foundations/06-calculus-gradients
+
+- term: Gradient Descent
+  aliases: ["SGD", "steepest descent"]
+  definition: An iterative optimization algorithm that updates parameters opposite the loss gradient to minimize an objective function.
+  formula: '\theta_{t+1} = \theta_t - \eta \nabla_\theta L(\theta_t)'
+  lessonUrl: /learn/classical-ml/02-gradient-descent
+
+- term: Learning Rate
+  aliases: ["step size", "eta"]
+  definition: A scalar hyperparameter η controlling how large a parameter step gradient descent takes per update.
+  lessonUrl: /learn/classical-ml/02-gradient-descent
+
+- term: Loss Function
+  aliases: ["objective function", "cost function"]
+  definition: A differentiable scalar measure quantifying how far a model's predictions deviate from ground-truth targets.
+  lessonUrl: /learn/deep-learning/03-loss-functions
+
+- term: Bias-Variance Tradeoff
+  aliases: ["bias", "variance"]
+  definition: The decomposition of expected prediction error into systematic underfitting error (bias²), sensitivity to training sample fluctuations (variance), and irreducible noise.
+  lessonUrl: /learn/classical-ml/04-bias-variance-regularization
+
+- term: Regularization
+  aliases: ["L1", "L2", "Ridge", "Lasso", "weight decay"]
+  definition: Constraints or penalty terms added to training objectives to discourage overly complex parameter configurations and improve generalization.
+  lessonUrl: /learn/classical-ml/04-bias-variance-regularization
+
+- term: Overfitting
+  aliases: ["overfit"]
+  definition: When a model memorizes noise or accidental patterns in the training set, achieving low training loss but poor validation accuracy on unseen data.
+  lessonUrl: /learn/deep-learning/08-regularization-dropout
+
+- term: Cross-Validation
+  aliases: ["k-fold", "stratified k-fold"]
+  definition: Partitioning data into k disjoint folds so each fold serves once as a held-out validation split, yielding low-variance performance estimates.
+  lessonUrl: /learn/classical-ml/05-cross-validation-metrics
+
+- term: ROC-AUC
+  aliases: ["ROC curve", "PR-AUC"]
+  definition: Area under the Receiver Operating Characteristic curve (True Positive Rate vs False Positive Rate across all decision thresholds).
+  lessonUrl: /learn/classical-ml/05-cross-validation-metrics
+
+- term: Data Leakage
+  aliases: ["leakage", "target leakage"]
+  definition: Inadvertently exposing validation/test statistics or future target information during preprocessing or feature selection, inflating offline scores.
+  lessonUrl: /learn/classical-ml/06-feature-engineering
+
+- term: Principal Component Analysis
+  aliases: ["PCA"]
+  definition: An orthogonal linear projection that rotates features onto directions of maximum variance, often used for dimensionality reduction and visualization.
+  lessonUrl: /learn/classical-ml/10-kmeans-and-pca
+
+- term: Backpropagation
+  aliases: ["reverse-mode autodiff", "backprop"]
+  definition: Applying the chain rule backward through a computational graph to compute gradients of the scalar loss with respect to every weight in O(1) backward passes.
+  lessonUrl: /learn/deep-learning/04-backpropagation
+
+- term: Activation Function
+  aliases: ["ReLU", "GELU", "SwiGLU", "Sigmoid"]
+  definition: A non-linear element-wise transformation inside neural layers that prevents deep stacks of linear layers from collapsing into a single linear map.
+  lessonUrl: /learn/deep-learning/02-activation-functions
+
+- term: AdamW
+  aliases: ["Adam", "adaptive moment estimation"]
+  definition: An adaptive optimizer combining per-parameter momentum (first moment) and gradient-variance scaling (second moment) with decoupled weight decay.
+  lessonUrl: /learn/deep-learning/05-optimizers
+
+- term: Layer Normalization
+  aliases: ["LayerNorm", "RMSNorm", "BatchNorm"]
+  definition: Rescaling activations across the feature dimension of each token independently so deep residual networks train stably regardless of batch size.
+  lessonUrl: /learn/deep-learning/07-normalization-batch-layer
+
+- term: Convolution
+  aliases: ["Conv2D", "kernel", "feature map"]
+  definition: Sliding a small learnable filter across spatial positions to compute local dot products, preserving translation equivariance and sharing weights.
+  lessonUrl: /learn/computer-vision/01-convolutions-kernels
+
+- term: Residual Connection
+  aliases: ["skip connection", "ResNet"]
+  definition: Adding a layer's input directly to its output (y = F(x) + x), giving gradients an unimpeded highway during backpropagation.
+  lessonUrl: /learn/computer-vision/02-cnn-architectures
+
+- term: Vision Transformer
+  aliases: ["ViT", "patch embedding"]
+  definition: A pure transformer architecture for images that splits an image into fixed-size patches, linearly projects them as tokens, and applies self-attention.
+  lessonUrl: /learn/computer-vision/04-vision-transformers
+
+- term: Byte-Pair Encoding
+  aliases: ["BPE", "tokenization", "subword"]
+  definition: A deterministic compression-inspired tokenization algorithm that iteratively merges the most frequent adjacent byte or character pairs into a subword vocabulary.
+  lessonUrl: /learn/nlp-transformers/01-tokenization-bpe
+
+- term: Embedding
+  aliases: ["embedding space", "vector representation"]
+  definition: A dense, continuous vector representation of discrete tokens, words, or items where geometric proximity reflects semantic similarity.
+  lessonUrl: /learn/nlp-transformers/02-word-embeddings
+
+- term: Self-Attention
+  aliases: ["scaled dot-product attention", "Q K V"]
+  definition: A mechanism allowing every token in a sequence to query all other tokens, computing dynamic context weights via softmax(QKᵀ / √d_k) V.
+  formula: '\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V'
+  lessonUrl: /learn/nlp-transformers/04-self-attention
+
+- term: RoPE
+  aliases: ["Rotary Position Embedding"]
+  definition: Encoding token positions by rotating Query and Key vector pairs in 2D subspaces proportionally to token index, capturing relative distances naturally.
+  lessonUrl: /learn/nlp-transformers/05-transformer-architecture
+
+- term: Grouped-Query Attention
+  aliases: ["GQA", "KV cache"]
+  definition: Sharing Key and Value projection heads across groups of Query heads to dramatically shrink KV-cache memory during long-context inference.
+  lessonUrl: /learn/nlp-transformers/05-transformer-architecture
+
+- term: Mixture of Experts
+  aliases: ["MoE", "sparse routing"]
+  definition: Replacing dense feed-forward blocks with multiple specialized sub-networks and a learned router that activates only top-k experts per token.
+  lessonUrl: /learn/generative-ai/04-scaling-laws-llms
+
+- term: Flow Matching
+  aliases: ["Rectified Flow", "Diffusion", "DiT"]
+  definition: Training a continuous velocity network (often a Diffusion Transformer) to transport Gaussian noise directly toward data along straight ODE paths in far fewer steps.
+  lessonUrl: /learn/generative-ai/03-diffusion-flow-matching
+
+- term: Retrieval-Augmented Generation
+  aliases: ["RAG", "hybrid search"]
+  definition: Grounding LLM outputs by retrieving relevant external passages at query time and supplying them in context rather than relying solely on parametric memory.
+  lessonUrl: /learn/generative-ai/06-rag-pipelines
+
+- term: LoRA
+  aliases: ["Low-Rank Adaptation", "QLoRA"]
+  definition: Freezing pretrained model weights W₀ and learning compact low-rank update matrices B·A (r ≪ d), cutting fine-tuning memory by orders of magnitude.
+  lessonUrl: /learn/generative-ai/07-fine-tuning-lora-qlora
+
+- term: Model Context Protocol
+  aliases: ["MCP", "tool use"]
+  definition: An open JSON-RPC protocol standardizing how AI agents discover and securely invoke external tools, resources, and prompts across clients and servers.
+  lessonUrl: /learn/generative-ai/08-agents-tool-use-mcp
+
+- term: Markov Decision Process
+  aliases: ["MDP", "Bellman equation"]
+  definition: A mathematical framework (S, A, P, R, γ) modeling sequential decision making under uncertainty via states, actions, transitions, rewards, and discount factor.
+  lessonUrl: /learn/reinforcement-learning/01-mdps-bellman
+
+- term: Q-Learning
+  aliases: ["action-value", "Q-table", "TD learning"]
+  definition: An off-policy temporal-difference RL algorithm that learns the expected discounted return Q(s,a) of taking action a in state s and acting optimally thereafter.
+  lessonUrl: /learn/reinforcement-learning/02-q-learning-dqn
+
+- term: PPO
+  aliases: ["Proximal Policy Optimization"]
+  definition: A policy-gradient RL method that constrains policy updates within a clipped probability-ratio trust region to prevent destructive collapse.
+  lessonUrl: /learn/reinforcement-learning/04-ppo
+
+- term: DPO
+  aliases: ["Direct Preference Optimization", "GRPO", "RLHF"]
+  definition: An alignment objective that optimizes a language model directly from chosen-vs-rejected response pairs without training a separate reward model or critic.
+  lessonUrl: /learn/reinforcement-learning/05-rlhf-dpo-grpo
+
+- term: Quantization
+  aliases: ["INT8", "NF4", "FP8", "AWQ"]
+  definition: Reducing numerical precision of weights and activations (e.g., from FP16 to INT8 or NF4) to lower memory bandwidth and accelerate inference.
+  lessonUrl: /learn/mlops/03-quantization-pruning
+
+- term: Data Drift
+  aliases: ["concept drift", "covariate shift", "PSI"]
+  definition: Changes in the statistical distribution of live production inputs P(X) relative to training data, often degrading model accuracy silently.
+  lessonUrl: /learn/mlops/05-data-concept-drift
+
+- term: SHAP
+  aliases: ["Shapley values", "LIME"]
+  definition: A game-theoretic feature attribution method assigning each feature its fair marginal contribution averaged across all feature coalitions.
+  lessonUrl: /learn/ai-safety/02-shap-lime-explainability
+
+- term: Sparse Autoencoder
+  aliases: ["SAE", "mechanistic interpretability", "polysemanticity"]
+  definition: An overcomplete dictionary-learning autoencoder trained on neural activations to decompose polysemantic neurons into interpretable monosemantic features.
+  lessonUrl: /learn/ai-safety/03-mechanistic-interpretability
+
+- term: Reward Hacking
+  aliases: ["specification gaming", "Goodhart's Law"]
+  definition: When an agent maximizes a flawed proxy reward metric while violating the designer's true intent.
+  lessonUrl: /learn/ai-safety/05-alignment-specification
+

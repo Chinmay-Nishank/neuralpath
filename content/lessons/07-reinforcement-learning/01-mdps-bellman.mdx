@@ -1,0 +1,126 @@
+---
+title: "Markov Decision Processes (MDPs), Returns & Bellman Equations"
+module: "reinforcement-learning"
+moduleOrder: 7
+order: 1
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["foundations/07-probability-statistics"]
+objectives:
+  - "Formalize sequential decision tasks with states, actions, transition dynamics, rewards, and discount factor gamma"
+  - "Compute discounted cumulative return G_t and explain why gamma < 1 guarantees convergence"
+  - "Solve small MDPs via Bellman value iteration from scratch"
+summary: "Build the mathematical foundation of Reinforcement Learning: Markov Decision Processes, discounted returns, and Bellman recursion."
+tags: ["mdp", "bellman", "reinforcement-learning", "value-iteration", "discount-factor"]
+vizTypes: ["rl-gridworld"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Actions Have Delayed Consequences
+
+In supervised learning, every input $x_i$ has an immediate label $y_i$. In **Reinforcement Learning (RL)**, an agent acts inside an environment over time: steering left now might cost $-0.1$ energy while setting up a $+10$ reward twenty steps later!
+
+A **<GlossaryTerm term="Markov Decision Process">Markov Decision Process (MDP)</GlossaryTerm>** captures sequential decision making with five elements $(S, A, P, R, \gamma)$:
+- **Markov Property:** the next state depends *only* on the current state and action—never on distant history.
+- **Discount Factor $\gamma \in [0, 1)$:** values near $0$ care only about immediate reward; values near $0.99$ plan long horizons.
+
+## Interactive Lab: Watch Value Propagate Across a Grid-World
+
+Press **Step** or **Play** below and tweak **Discount Factor $\gamma$** to observe how expected returns flow backward from the $+10$ Goal cell.
+
+<Viz type="rl-gridworld" />
+
+<Callout type="math-deep-dive" title="The Bellman Optimality Equation">
+  The optimal state-value $V^*(s)$ satisfies a recursive fixed-point identity:
+
+  <Math tex="V^*(s) = \max_{a \in A} \sum_{s'} P(s' \mid s, a)\Big[R(s, a, s') + \gamma V^*(s')\Big]" display />
+
+  Repeatedly applying this backup (**Value Iteration**) contracts toward the unique optimal value table at rate $\gamma$.
+</Callout>
+
+## Runnable Code: Discounted Returns & Bellman Value Iteration
+
+<CodeRunner
+  title="Discounted Returns & Bellman Value Iteration in NumPy"
+  code={`import numpy as np
+
+# 4-state chain: 0 <-> 1 <-> 2 -> Terminal Goal (state 3, reward +10)
+n_states = 4
+gamma = 0.9
+V = np.zeros(n_states)
+
+for _ in range(30):
+    V_new = V.copy()
+    for s in range(3):
+        # Actions: left (max(0, s-1)) or right (s+1)
+        r_right = 10.0 if s + 1 == 3 else -0.2
+        val_right = r_right + (0.0 if s + 1 == 3 else gamma * V[s + 1])
+        val_left = -0.2 + gamma * V[max(0, s - 1)]
+        V_new[s] = max(val_left, val_right)
+    V = V_new
+
+print("Optimal state values V*(s):", np.round(V[:3], 3))`}
+  libraryCode={`import numpy as np
+
+# Matrix Bellman evaluation for a fixed policy: V = R_pi + gamma * P_pi @ V
+P_pi = np.array([[0.0, 1.0, 0.0], [0.1, 0.0, 0.9], [0.0, 0.0, 1.0]])
+R_pi = np.array([-0.2, -0.2, 10.0])
+gamma = 0.9
+
+# Exact linear solve: (I - gamma * P_pi) V = R_pi
+V_exact = np.linalg.solve(np.eye(3) - gamma * P_pi, R_pi)
+print("Exact policy evaluation V_pi:", np.round(V_exact, 3))`}
+  exerciseStarter={`def discounted_return(rewards, gamma=0.9):
+    # TODO: compute G_0 = sum_{t=0}^{T-1} (gamma ** t) * rewards[t]
+    return 0.0`}
+  exerciseTests={`assert abs(discounted_return([1.0, 1.0, 1.0], gamma=0.5) - 1.75) < 1e-7
+assert abs(discounted_return([0.0, 0.0, 10.0], gamma=0.9) - 8.1) < 1e-7`}
+  exerciseSolution={`def discounted_return(rewards, gamma=0.9):
+    g = 0.0
+    for r in reversed(rewards):
+        g = float(r) + gamma * g
+    return g`}
+  hint1="Iterate backwards with reversed(rewards) updating g = r + gamma * g."
+  hint2="Equivalently, sum((gamma ** t) * r for t, r in enumerate(rewards))."
+/>
+
+<Quiz
+  lessonId="reinforcement-learning/01-mdps-bellman"
+  questions={[
+    {
+      id: "mdp-q1",
+      type: "mcq",
+      prompt: "What happens to an RL agent's behavior when discount factor gamma approaches 0.0?",
+      options: [
+        "It plans infinitely far ahead",
+        "It becomes myopic, optimizing only immediate single-step reward",
+        "Its value function diverges to infinity",
+        "Transitions become deterministic"
+      ],
+      answer: 1,
+      explanation: "With gamma = 0, future returns multiply by zero so the agent maximizes only R(s, a)."
+    },
+    {
+      id: "mdp-q2",
+      type: "fill-blank",
+      prompt: "Under the ______ property, the transition probability to s_{t+1} depends solely on current state s_t and action a_t.",
+      answer: "Markov",
+      acceptableAnswers: ["markov"],
+      explanation: "The Markov assumption makes sequential decision making tractable without storing unbounded history."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "MDPs formalize sequential decisions via states, actions, stochastic transitions, rewards, and discount gamma.",
+    "Discounting keeps infinite-horizon returns bounded and models preference for earlier rewards.",
+    "Bellman equations turn global multi-step return optimization into local one-step recursive backups."
+  ]}
+/>
+

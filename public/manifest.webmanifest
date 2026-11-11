@@ -1,0 +1,17 @@
+{
+  "name": "NeuralPath — ML, Deep Learning & AI Curriculum",
+  "short_name": "NeuralPath",
+  "description": "Interactive Machine Learning, Deep Learning, and AI learning platform from first principles to transformers.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF9F6",
+  "theme_color": "#1D4ED8",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
+

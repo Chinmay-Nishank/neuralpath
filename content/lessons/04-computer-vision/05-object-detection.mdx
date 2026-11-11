@@ -1,0 +1,144 @@
+---
+title: "Object Detection: IoU, Non-Max Suppression, YOLO & DETR"
+module: "computer-vision"
+moduleOrder: 4
+order: 5
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["computer-vision/02-cnn-architectures"]
+objectives:
+  - "Compute Intersection over Union (IoU) accurately for bounding box matching"
+  - "Implement Non-Maximum Suppression (NMS) to prune duplicate overlapping predictions"
+  - "Contrast anchor-based/anchor-free YOLO detectors against transformer-based end-to-end DETR"
+summary: "Localize and classify multiple objects per image using IoU, Non-Maximum Suppression, YOLO dense grids, and set-based DETR."
+tags: ["object-detection", "iou", "nms", "yolo", "detr"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Classification Meets Localization
+
+Image classification answers *"what single label describes this frame?"* **Object detection** predicts a variable-length list of `(class, confidence, x_min, y_min, x_max, y_max)` boxes.
+
+Two families dominate modern detection:
+- **YOLO (Single-Stage Dense Detectors):** predict class scores and bounding offsets across multi-scale feature grids in real time, then filter overlapping duplicates with **Non-Maximum Suppression (NMS)**.
+- **DETR (Detection Transformer):** replaces anchor priors and hand-crafted NMS entirely using learned object queries, Transformer cross-attention, and bipartite Hungarian set-matching loss!
+
+<Viz type="roc-pr" />
+
+<Callout type="math-deep-dive" title="Intersection over Union (IoU)">
+  Given two boxes $A = (x_1, y_1, x_2, y_2)$ and $B = (x'_1, y'_1, x'_2, y'_2)$:
+
+  <Math tex="\text{IoU}(A, B) = \frac{\text{Area}(A \cap B)}{\text{Area}(A) + \text{Area}(B) - \text{Area}(A \cap B)} \in [0, 1]" display />
+
+  Detection benchmarks evaluate **mAP** (mean Average Precision) across IoU thresholds (such as `mAP@0.50:0.95`).
+</Callout>
+
+## Runnable Code: IoU & Non-Maximum Suppression From Scratch
+
+<CodeRunner
+  title="Implementing Bounding-Box IoU and NMS From Scratch"
+  code={`import numpy as np
+
+def box_iou(a, b):
+    x1 = max(a[0], b[0])
+    y1 = max(a[1], b[1])
+    x2 = min(a[2], b[2])
+    y2 = min(a[3], b[3])
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    area_a = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+    area_b = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+    union = area_a + area_b - inter
+    return inter / max(1e-9, union)
+
+def nms(boxes, scores, iou_thresh=0.5):
+    order = np.argsort(scores)[::-1]
+    keep = []
+    while len(order) > 0:
+        idx = int(order[0])
+        keep.append(idx)
+        rest = []
+        for j in order[1:]:
+            if box_iou(boxes[idx], boxes[int(j)]) <= iou_thresh:
+                rest.append(int(j))
+        order = np.array(rest, dtype=int)
+    return keep
+
+boxes = np.array([[10, 10, 50, 50], [12, 12, 48, 48], [100, 100, 140, 140]], dtype=float)
+scores = np.array([0.92, 0.81, 0.88])
+print("Kept box indices after NMS:", nms(boxes, scores, iou_thresh=0.5))`}
+  libraryCode={`import torch
+
+# Vectorized IoU in PyTorch across M x N boxes
+b1 = torch.tensor([[10., 10., 50., 50.], [100., 100., 140., 140.]])
+b2 = torch.tensor([[12., 12., 48., 48.]])
+
+lt = torch.maximum(b1[:, None, :2], b2[None, :, :2])
+rb = torch.minimum(b1[:, None, 2:], b2[None, :, 2:])
+wh = (rb - lt).clamp(min=0)
+inter = wh[:, :, 0] * wh[:, :, 1]
+area1 = (b1[:, 2] - b1[:, 0]) * (b1[:, 3] - b1[:, 1])
+area2 = (b2[:, 2] - b2[:, 0]) * (b2[:, 3] - b2[:, 1])
+iou = inter / (area1[:, None] + area2[None, :] - inter)
+print("Vectorized IoU matrix:\n", iou.numpy().round(3))`}
+  exerciseStarter={`def compute_iou(box_a, box_b):
+    # box format: [x1, y1, x2, y2]
+    # TODO: return Intersection over Union float in [0.0, 1.0]
+    return 0.0`}
+  exerciseTests={`assert abs(compute_iou([0, 0, 10, 10], [0, 0, 10, 10]) - 1.0) < 1e-6
+assert abs(compute_iou([0, 0, 10, 10], [20, 20, 30, 30]) - 0.0) < 1e-6
+# Overlap 5x10=50, union 100+100-50=150 -> 1/3
+assert abs(compute_iou([0, 0, 10, 10], [5, 0, 15, 10]) - (1.0 / 3.0)) < 1e-6`}
+  exerciseSolution={`def compute_iou(box_a, box_b):
+    x1 = max(box_a[0], box_b[0])
+    y1 = max(box_a[1], box_b[1])
+    x2 = min(box_a[2], box_b[2])
+    y2 = min(box_a[3], box_b[3])
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    area_a = max(0.0, box_a[2] - box_a[0]) * max(0.0, box_a[3] - box_a[1])
+    area_b = max(0.0, box_b[2] - box_b[0]) * max(0.0, box_b[3] - box_b[1])
+    return inter / max(1e-9, area_a + area_b - inter)`}
+  hint1="Intersection corners use max(x1, x1') and min(x2, x2')."
+  hint2="Clamp intersection width and height with max(0.0, ...) so disjoint boxes yield 0."
+/>
+
+<Quiz
+  lessonId="computer-vision/05-object-detection"
+  questions={[
+    {
+      id: "det-q1",
+      type: "mcq",
+      prompt: "What problem does Non-Maximum Suppression (NMS) solve in YOLO-style object detectors?",
+      options: [
+        "Increasing image resolution",
+        "Removing redundant overlapping bounding boxes predicted for the same object",
+        "Normalizing pixel brightness",
+        "Preventing vanishing gradients"
+      ],
+      answer: 1,
+      explanation: "NMS keeps the highest-confidence box and discards lower-scoring neighbors overlapping above the IoU threshold."
+    },
+    {
+      id: "det-q2",
+      type: "fill-blank",
+      prompt: "Unlike YOLO, DETR removes hand-tuned NMS by framing detection as set prediction trained with bipartite ______ matching.",
+      answer: "Hungarian",
+      acceptableAnswers: ["hungarian"],
+      explanation: "Hungarian matching pairs each ground-truth object uniquely to one predicted query slot."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "IoU measures spatial overlap between predicted and ground-truth boxes.",
+    "NMS deduplicates dense overlapping predictions; DETR eliminates NMS via bipartite set matching.",
+    "Evaluate detectors with mAP across multiple IoU thresholds, not single-threshold accuracy."
+  ]}
+/>
+

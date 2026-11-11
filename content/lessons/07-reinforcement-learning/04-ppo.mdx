@@ -1,0 +1,124 @@
+---
+title: "Proximal Policy Optimization (PPO): Clipped Trust Regions & GAE"
+module: "reinforcement-learning"
+moduleOrder: 7
+order: 4
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 20
+prerequisites: ["reinforcement-learning/03-policy-gradients"]
+objectives:
+  - "Diagnose why large policy-gradient steps trigger irreversible policy collapse in RL"
+  - "Implement PPO's clipped probability-ratio surrogate objective and Generalized Advantage Estimation (GAE)"
+  - "Tune clip epsilon, GAE lambda, and multi-epoch minibatch updates safely"
+summary: "Master PPO—the workhorse RL algorithm behind robotics control and classic RLHF—using clipped probability ratios and GAE."
+tags: ["ppo", "gae", "trust-region", "rl", "policy-optimization"]
+vizTypes: ["rl-gridworld"]
+colabNotebook: "notebooks/reinforcement-learning/ppo.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Never Step Too Far From What Collected the Data
+
+In supervised learning, a slightly oversized learning rate causes a noisy step, yet the training dataset remains intact. In RL, a bad parameter update ruins the **policy itself**, which immediately collects terrible future rollouts from which the agent never recovers!
+
+**<GlossaryTerm term="PPO">PPO</GlossaryTerm>** prevents catastrophic policy swings simply and cheaply: measure the probability ratio $r_t(\theta) = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{\text{old}}}(a_t \mid s_t)}$ and **clip** updates outside $[1 - \epsilon, 1 + \epsilon]$ (typically $\epsilon = 0.2$), letting us safely reuse each rollout batch for multiple gradient epochs!
+
+<Viz type="rl-gridworld" />
+
+<Callout type="math-deep-dive" title="PPO Clipped Surrogate & GAE Equations">
+  PPO maximizes the pessimistic lower bound:
+  <Math tex="L^{\text{CLIP}}(\theta) = \mathbb{E}_t\Big[\min\!\big(r_t(\theta) \hat{A}_t,\; \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big]" display />
+  Meanwhile, **Generalized Advantage Estimation (GAE)** blends multi-step TD errors $\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$ exponentially with $\lambda \in [0, 1]$ (typically $0.95$):
+  <Math tex="\hat{A}_t^{\text{GAE}} = \delta_t + (\gamma\lambda)\hat{A}_{t+1}^{\text{GAE}}" display />
+</Callout>
+
+## Runnable Code: PPO Clipped Loss & GAE Advantage Calculation
+
+<CodeRunner
+  title="Implementing GAE and PPO Clipped Surrogate Loss"
+  code={`import numpy as np
+
+def compute_gae(rewards, values, next_value, gamma=0.99, lam=0.95):
+    T = len(rewards)
+    adv = np.zeros(T)
+    last_gae = 0.0
+    for t in reversed(range(T)):
+        v_next = next_value if t == T - 1 else values[t + 1]
+        delta = rewards[t] + gamma * v_next - values[t]
+        last_gae = delta + gamma * lam * last_gae
+        adv[t] = last_gae
+    return adv
+
+rewards = np.array([0.0, 0.0, 1.0, 2.0])
+values = np.array([0.4, 0.8, 1.5, 1.8])
+print("GAE advantages:", np.round(compute_gae(rewards, values, next_value=0.0), 3))`}
+  libraryCode={`import torch
+
+def ppo_clipped_loss(new_log_probs, old_log_probs, advantages, eps=0.2):
+    ratio = torch.exp(new_log_probs - old_log_probs)
+    unclipped = ratio * advantages
+    clipped = torch.clamp(ratio, 1.0 - eps, 1.0 + eps) * advantages
+    return -torch.min(unclipped, clipped).mean()
+
+old_lp = torch.tensor([-1.2, -0.8, -1.5])
+new_lp = torch.tensor([-0.6, -1.0, -1.4])  # ratio[0] = exp(0.6) = 1.82 -> clipped!
+adv = torch.tensor([1.5, -1.0, 0.5])
+print("PPO surrogate loss:", round(ppo_clipped_loss(new_lp, old_lp, adv).item(), 4))`}
+  exerciseStarter={`import numpy as np
+
+def ppo_surrogate_point(ratio, advantage, eps=0.2):
+    # TODO: return min(ratio * advantage, clip(ratio, 1-eps, 1+eps) * advantage)
+    return 0.0`}
+  exerciseTests={`# Positive advantage: ratio=1.5 gets clipped to 1.2 -> 1.2 * 2.0 = 2.4
+assert abs(ppo_surrogate_point(1.5, 2.0, eps=0.2) - 2.4) < 1e-7
+# Negative advantage: ratio=1.5 is unclipped (1.5 * -2 = -3.0 < 1.2 * -2 = -2.4)
+assert abs(ppo_surrogate_point(1.5, -2.0, eps=0.2) - (-3.0)) < 1e-7`}
+  exerciseSolution={`import numpy as np
+
+def ppo_surrogate_point(ratio, advantage, eps=0.2):
+    clipped = float(np.clip(ratio, 1.0 - eps, 1.0 + eps))
+    return float(min(ratio * advantage, clipped * advantage))`}
+  hint1="Clamp ratio inside [1.0 - eps, 1.0 + eps] using np.clip."
+  hint2="Take min(ratio * advantage, clipped * advantage)."
+/>
+
+<Quiz
+  lessonId="reinforcement-learning/04-ppo"
+  questions={[
+    {
+      id: "ppo-q1",
+      type: "mcq",
+      prompt: "When advantage A_t > 0, what does PPO's min(..., clip(ratio, 1-eps, 1+eps)*A_t) objective prevent?",
+      options: [
+        "Increasing action probability beyond ratio (1 + eps) in a single rollout batch",
+        "Computing value losses",
+        "Using continuous actions",
+        "Discounting future rewards"
+      ],
+      answer: 0,
+      explanation: "Clipping caps the incentive to over-boost an action's probability relative to the behavior policy."
+    },
+    {
+      id: "ppo-q2",
+      type: "fill-blank",
+      prompt: "GAE stands for Generalized ______ Estimation, blending 1-step TD bias and Monte-Carlo variance via parameter lambda.",
+      answer: "Advantage",
+      acceptableAnswers: ["advantage"],
+      explanation: "GAE tunes the bias-variance spectrum smoothly with lambda in [0, 1]."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "PPO stabilizes on-policy updates by clipping the likelihood ratio against the rollout policy.",
+    "Taking min(...) ensures pessimistic bounds for both positive and negative advantages.",
+    "GAE combines TD residuals cleanly across rollout horizons to reduce gradient variance."
+  ]}
+/>
+

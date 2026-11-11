@@ -1,0 +1,132 @@
+---
+title: "Cross-Validation & Evaluation Metrics (ROC-AUC, PR-AUC, Confusion Matrix)"
+module: "classical-ml"
+moduleOrder: 2
+order: 5
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 17
+prerequisites: ["classical-ml/03-logistic-regression"]
+objectives:
+  - "Estimate out-of-sample performance reliably using Stratified k-Fold cross-validation"
+  - "Interpret precision, recall, F1, ROC-AUC, and PR-AUC across decision thresholds"
+  - "Explain why accuracy misleads on imbalanced datasets like fraud or rare disease screening"
+summary: "Evaluate classifiers honestly using stratified cross-validation, confusion matrices, ROC curves, and Precision-Recall tradeoffs."
+tags: ["cross-validation", "metrics", "roc-auc", "pr-auc", "confusion-matrix"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Why 99% Accuracy Can Be Completely Useless
+
+Suppose only 1% of transactions are fraudulent. A dummy classifier that predicts `"not fraud"` every single time achieves **99% accuracy** while catching **zero** fraud cases.
+
+Instead of looking only at raw accuracy, dissect predictions with a **confusion matrix**, adjust your decision threshold, and measure Precision, Recall, <GlossaryTerm term="ROC-AUC">ROC-AUC</GlossaryTerm>, and PR-AUC.
+
+## Interactive Lab: Thresholds & Confusion Matrix
+
+Drag the **Decision Threshold** below to observe the inverse tug-of-war between **Precision** (fewer false alarms) and **Recall** (fewer missed positives).
+
+<Viz type="roc-pr" />
+
+<Callout type="tip" title="Stratified k-Fold Is Mandatory for Imbalanced Targets">
+  Standard random splits can accidentally leave a fold with zero positive examples when classes are rare. `StratifiedKFold` preserves exact class ratios in every fold.
+</Callout>
+
+<Callout type="math-deep-dive" title="ROC-AUC vs. PR-AUC">
+  - **ROC-AUC** plots True Positive Rate vs. False Positive Rate across all thresholds. Because FPR divides by all Negatives ($FP + TN$), massive negative classes can make ROC curves look artificially optimistic.
+  - **PR-AUC** plots Precision vs. Recall, ignoring True Negatives completely—making it the gold standard for rare-event detection.
+</Callout>
+
+## Runnable Code: Precision/Recall From Scratch & Stratified CV
+
+<CodeRunner
+  title="Confusion Metrics & Stratified Cross-Validation"
+  code={`import numpy as np
+
+y_true = np.array([1, 1, 0, 0, 1, 0, 1, 0, 0, 0])
+y_prob = np.array([0.88, 0.42, 0.65, 0.12, 0.91, 0.25, 0.55, 0.08, 0.30, 0.19])
+
+for thresh in [0.35, 0.50, 0.70]:
+    y_pred = (y_prob >= thresh).astype(int)
+    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
+    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
+    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
+    prec = tp / max(1, tp + fp)
+    rec = tp / max(1, tp + fn)
+    f1 = (2 * prec * rec) / max(1e-9, prec + rec)
+    print(f"thresh={thresh:.2f} | Precision={prec:.2f} Recall={rec:.2f} F1={f1:.2f}")`}
+  libraryCode={`from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_validate
+
+X, y = make_classification(
+    n_samples=300, weights=[0.9, 0.1], random_state=42
+)
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_validate(
+    LogisticRegression(), X, y, cv=cv, scoring=["roc_auc", "average_precision", "f1"]
+)
+print("Mean ROC-AUC:", round(scores["test_roc_auc"].mean(), 3))
+print("Mean PR-AUC :", round(scores["test_average_precision"].mean(), 3))
+print("Mean F1     :", round(scores["test_f1"].mean(), 3))`}
+  exerciseStarter={`import numpy as np
+
+def compute_f1(y_true, y_pred):
+    # TODO: compute precision, recall, and F1 safely (return 0.0 if tp == 0)
+    return 0.0`}
+  exerciseTests={`yt = np.array([1, 1, 0, 0])
+yp = np.array([1, 0, 0, 0])
+# TP=1, FP=0, FN=1 -> prec=1.0, rec=0.5 -> F1 = 2/3
+assert abs(compute_f1(yt, yp) - (2.0 / 3.0)) < 1e-6`}
+  exerciseSolution={`import numpy as np
+
+def compute_f1(y_true, y_pred):
+    yt = np.asarray(y_true) == 1
+    yp = np.asarray(y_pred) == 1
+    tp = int(np.sum(yt & yp))
+    if tp == 0:
+        return 0.0
+    fp = int(np.sum((~yt) & yp))
+    fn = int(np.sum(yt & (~yp)))
+    prec = tp / (tp + fp)
+    rec = tp / (tp + fn)
+    return 2.0 * prec * rec / (prec + rec)`}
+  hint1="Count TP, FP, and FN with boolean masks (yt & yp, (~yt) & yp, yt & (~yp))."
+  hint2="Return 0.0 early when tp == 0 to avoid zero division."
+/>
+
+<Quiz
+  lessonId="classical-ml/05-cross-validation-metrics"
+  questions={[
+    {
+      id: "cv-q1",
+      type: "mcq",
+      prompt: "On a dataset with 99.5% negative samples and 0.5% positive fraud samples, which metric exposes false positives best?",
+      options: ["Overall Accuracy", "PR-AUC (Average Precision)", "Training Loss", "True Negative Count"],
+      answer: 1,
+      explanation: "Precision-Recall AUC ignores true negatives and directly measures how many flagged cases are genuinely positive."
+    },
+    {
+      id: "cv-q2",
+      type: "fill-blank",
+      prompt: "The harmonic mean of Precision and Recall is the ______ score.",
+      answer: "F1",
+      acceptableAnswers: ["f1", "f1-score"],
+      explanation: "F1 = 2 * (P * R) / (P + R) stays low unless both precision and recall are high."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Never evaluate imbalanced classifiers solely with accuracy; inspect confusion matrices and PR-AUC.",
+    "Use StratifiedKFold cross-validation to preserve class distributions across splits.",
+    "Tune probability decision thresholds to reflect business costs of False Positives vs. False Negatives."
+  ]}
+/>
+

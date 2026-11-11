@@ -1,0 +1,136 @@
+---
+title: "Mechanistic Interpretability: Polysemanticity, Sparse Autoencoders & Steering"
+module: "ai-safety"
+moduleOrder: 9
+order: 3
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 21
+prerequisites: ["nlp-transformers/05-transformer-architecture", "generative-ai/01-autoencoders-vae"]
+objectives:
+  - "Explain superposition and why individual LLM neurons fire on unrelated concepts (polysemanticity)"
+  - "Train an overcomplete Sparse Autoencoder (SAE) to decompose residual activations into monosemantic features"
+  - "Apply inference-time feature steering and understand faithfulness vs. artifact caveats"
+summary: "Look inside Transformer residual streams using dictionary learning, Sparse Autoencoders (SAEs), monosemantic circuits, and activation steering."
+tags: ["mechanistic-interpretability", "sae", "sparse-autoencoder", "superposition", "steering"]
+vizTypes: ["embeddings"]
+colabNotebook: "notebooks/ai-safety/sparse-autoencoder.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Untangling Polysemantic Neurons via Dictionary Learning
+
+If you inspect a single neuron inside GPT or Claude, it rarely represents one clean idea—it might fire simultaneously for *base64 strings*, *French poetry*, and *SQL quotes*! Why? Because neural networks pack far more concepts than neurons by storing concepts as nearly-orthogonal directions (**superposition**), making individual neurons **polysemantic**.
+
+**<GlossaryTerm term="Sparse Autoencoder">Sparse Autoencoders (SAEs)</GlossaryTerm>** reverse superposition using dictionary learning: project a dense $d$-dimensional residual activation $x$ up into a much wider sparse latent layer $z \in \mathbb{R}^{M}$ ($M \gg d$) with an L1 (or Top-$K$) sparsity constraint so only ~20–50 features fire per token! Each sparse dictionary direction isolates clean **monosemantic features** (such as *deception*, *code syntax errors*, or *Golden Gate Bridge*), letting safety teams monitor hidden states or steer behavior cleanly!
+
+<Viz type="embeddings" />
+
+<Callout type="note" title="From Research Demos to Open Interpretability Suites">
+  Open-weight SAE suites like Google DeepMind's **Gemma Scope** and production attribution graphs allow auditors to trace internal reasoning circuits and catch misaligned intents *before* unsafe tokens are even sampled—though researchers actively validate whether extracted SAE directions are causally faithful vs. reconstruction artifacts.
+</Callout>
+
+<Callout type="math-deep-dive" title="Overcomplete SAE Objective">
+  Given hidden residual activation $x \in \mathbb{R}^d$, encoder $W_{\text{enc}} \in \mathbb{R}^{d \times M}$, and unit-norm decoder dictionary columns $W_{\text{dec}} \in \mathbb{R}^{M \times d}$ ($M \gg d$):
+
+  <Math tex="f(x) = \text{ReLU}\!\big((x - b_{\text{dec}})W_{\text{enc}} + b_{\text{enc}}\big), \qquad \hat{x} = f(x) W_{\text{dec}} + b_{\text{dec}}" display />
+  <Math tex="\mathcal{L}_{\text{SAE}} = \|x - \hat{x}\|_2^2 + \lambda \|f(x)\|_1" display />
+</Callout>
+
+## Runnable Code: Overcomplete Sparse Autoencoder & Feature Clamping
+
+<CodeRunner
+  title="Training a Toy Sparse Autoencoder (SAE) & Clamping Features in PyTorch"
+  code={`import numpy as np
+
+# Toy superposition: 4 sparse ground-truth concepts packed into 2D dense vector!
+angles = np.array([0.0, np.pi/4, np.pi/2, 3*np.pi/4])
+D = np.vstack([np.cos(angles), np.sin(angles)])  # 2 x 4 dictionary
+
+# Activate concept #2 only
+sparse_code = np.array([0.0, 0.0, 1.5, 0.0])
+residual = D @ sparse_code
+# Steering: clamp concept #0 up by +2.0 directly in residual space!
+steered = residual + 2.0 * D[:, 0]
+print("Original residual:", np.round(residual, 3))
+print("Steered residual :", np.round(steered, 3))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+class SparseAutoencoder(nn.Module):
+    def __init__(self, d_model=16, d_sae=64):
+        super().__init__()
+        self.enc = nn.Linear(d_model, d_sae)
+        self.dec = nn.Linear(d_sae, d_model)
+
+    def forward(self, x):
+        feats = torch.relu(self.enc(x))
+        recon = self.dec(feats)
+        return recon, feats
+
+sae = SparseAutoencoder(16, 64)
+opt = torch.optim.Adam(sae.parameters(), lr=1e-2)
+x = torch.randn(32, 16)
+recon, feats = sae(x)
+loss = ((x - recon) ** 2).mean() + 0.05 * feats.abs().mean()
+loss.backward(); opt.step()
+active_frac = (feats > 0).float().mean().item()
+print(f"SAE Loss={loss.item():.4f} | Active feature fraction={active_frac:.2%}")`}
+  exerciseStarter={`import numpy as np
+
+def steer_activation(h, feature_dir, strength=2.0):
+    # Normalize feature_dir to unit L2 norm, then return h + strength * unit_dir
+    return h`}
+  exerciseTests={`h = np.array([1.0, 1.0])
+d = np.array([3.0, 4.0])  # unit dir = [0.6, 0.8]
+out = steer_activation(h, d, strength=5.0)
+assert np.allclose(out, [4.0, 5.0])`}
+  exerciseSolution={`import numpy as np
+
+def steer_activation(h, feature_dir, strength=2.0):
+    d = np.asarray(feature_dir, dtype=float)
+    unit_d = d / max(1e-12, float(np.linalg.norm(d)))
+    return np.asarray(h, dtype=float) + float(strength) * unit_d`}
+  hint1="Divide feature_dir by np.linalg.norm(feature_dir) first."
+  hint2="Add strength * unit_d onto activation h."
+/>
+
+<Quiz
+  lessonId="ai-safety/03-mechanistic-interpretability"
+  questions={[
+    {
+      id: "mech-q1",
+      type: "mcq",
+      prompt: "What causes polysemanticity in neural network MLP neurons?",
+      options: [
+        "Using ReLU instead of GELU",
+        "Superposition: models compress far more independent features than available neurons as nearly-orthogonal directions",
+        "Dropout during inference",
+        "Tokenizers splitting spaces"
+      ],
+      answer: 1,
+      explanation: "Because high-dimensional spaces hold exponentially many almost-orthogonal vectors, models pack more concepts than physical dimensions."
+    },
+    {
+      id: "mech-q2",
+      type: "fill-blank",
+      prompt: "To decompose dense polysemantic activations into monosemantic features, SAEs use an ______ hidden layer (d_sae >> d_model) paired with an L1 sparsity penalty.",
+      answer: "overcomplete",
+      acceptableAnswers: ["overcomplete", "wider", "sparse"],
+      explanation: "An overcomplete sparse dictionary provides dedicated latent slots for individual features."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Individual neurons are polysemantic because networks exploit superposition to pack extra features.",
+    "Sparse Autoencoders expand activations into wide sparse dictionaries, isolating human-interpretable features.",
+    "Activation clamping lets auditors verify causal influence and steer safety properties at inference."
+  ]}
+/>
+

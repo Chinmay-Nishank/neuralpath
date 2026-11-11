@@ -1,0 +1,129 @@
+---
+title: "Autoencoders & Variational Autoencoders (VAEs): ELBO & Latent Manifolds"
+module: "generative-ai"
+moduleOrder: 6
+order: 1
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 19
+prerequisites: ["foundations/07-probability-statistics", "deep-learning/04-backpropagation"]
+objectives:
+  - "Contrast deterministic compression autoencoders with probabilistic VAEs"
+  - "Use the Reparameterization Trick z = mu + sigma * eps so gradients flow through sampling"
+  - "Understand why modern Latent Diffusion Models rely on VAEs to compress pixel space"
+summary: "Learn how Variational Autoencoders regularize latent manifolds with KL divergence and power latent-space generative models."
+tags: ["vae", "autoencoder", "elbo", "reparameterization", "latent-space"]
+vizTypes: ["embeddings"]
+colabNotebook: "notebooks/generative-ai/vae.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Smooth Continuous Latent Maps
+
+A plain autoencoder learns an encoder $E(x) \to z$ and decoder $D(z) \to \hat{x}$ with no rules on how $z$ is arranged—leaving disconnected holes in latent space so random samples $z \sim \mathcal{N}(0, I)$ decode to gibberish.
+
+A **Variational Autoencoder (VAE)** predicts a *distribution* $(\mu, \log\sigma^2)$ per input and forces all encoded distributions close to a standard Gaussian prior $\mathcal{N}(0, I)$. Every modern image generator (Stable Diffusion, FLUX) runs inside a pretrained VAE's $8\times$-downsampled latent space!
+
+<Viz type="embeddings" />
+
+<Callout type="math-deep-dive" title="ELBO Objective & Reparameterization Trick">
+  Sampling $z \sim \mathcal{N}(\mu, \sigma^2)$ directly blocks gradients wrt $\mu$ and $\sigma$. We move randomness to $\epsilon \sim \mathcal{N}(0, I)$:
+  <Math tex="z = \mu + \sigma \odot \epsilon" display />
+  Maximizing the Evidence Lower Bound (**ELBO**) minimizes reconstruction error plus closed-form Gaussian KL divergence:
+  <Math tex="\mathcal{L}_{\text{VAE}} = \|x - \hat{x}\|_2^2 + \frac{1}{2} \sum_{j=1}^{d_z} \left(\mu_j^2 + \sigma_j^2 - \log \sigma_j^2 - 1\right)" display />
+</Callout>
+
+## Runnable Code: Reparameterization & Closed-Form VAE KL Loss
+
+<CodeRunner
+  title="VAE Reparameterization Trick & Analytical Gaussian KL"
+  code={`import numpy as np
+
+def vae_kl_loss(mu, log_var):
+    # Closed-form KL(N(mu, exp(log_var)) || N(0, I)) summed over latent dims, averaged over batch
+    kl_per_sample = -0.5 * np.sum(1.0 + log_var - mu**2 - np.exp(log_var), axis=-1)
+    return float(np.mean(kl_per_sample))
+
+mu = np.array([[0.0, 0.0], [1.5, -1.0]])
+log_var = np.array([[0.0, 0.0], [-0.5, -0.5]])
+print("KL when matching N(0, I):", round(vae_kl_loss(mu[:1], log_var[:1]), 6))
+print("KL when shifted/narrow  :", round(vae_kl_loss(mu[1:], log_var[1:]), 4))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+class SimpleVAE(nn.Module):
+    def __init__(self, d_in=64, d_z=8):
+        super().__init__()
+        self.enc = nn.Linear(d_in, 32)
+        self.mu = nn.Linear(32, d_z)
+        self.logvar = nn.Linear(32, d_z)
+        self.dec = nn.Sequential(nn.Linear(d_z, 32), nn.ReLU(), nn.Linear(32, d_in))
+
+    def forward(self, x):
+        h = torch.relu(self.enc(x))
+        mu, logvar = self.mu(h), self.logvar(h)
+        std = torch.exp(0.5 * logvar)
+        z = mu + std * torch.randn_like(std)
+        return self.dec(z), mu, logvar
+
+vae = SimpleVAE()
+recon, mu, lv = vae(torch.randn(4, 64))
+print("VAE recon shape:", tuple(recon.shape), "Latent mu shape:", tuple(mu.shape))`}
+  exerciseStarter={`import numpy as np
+
+def reparameterize(mu, log_var, eps):
+    # TODO: compute z = mu + exp(0.5 * log_var) * eps
+    return mu`}
+  exerciseTests={`mu = np.array([1.0, -2.0])
+lv = np.array([0.0, np.log(4.0)])  # std = [1.0, 2.0]
+eps = np.array([0.5, -1.0])
+z = reparameterize(mu, lv, eps)
+assert np.allclose(z, [1.5, -4.0])`}
+  exerciseSolution={`import numpy as np
+
+def reparameterize(mu, log_var, eps):
+    std = np.exp(0.5 * np.asarray(log_var, dtype=float))
+    return np.asarray(mu, dtype=float) + std * np.asarray(eps, dtype=float)`}
+  hint1="Standard deviation is exp(0.5 * log_var), not exp(log_var)."
+  hint2="Return mu + std * eps."
+/>
+
+<Quiz
+  lessonId="generative-ai/01-autoencoders-vae"
+  questions={[
+    {
+      id: "vae-q1",
+      type: "mcq",
+      prompt: "What does the reparameterization trick z = mu + sigma * eps accomplish in a VAE?",
+      options: [
+        "Removes the need for a decoder",
+        "Makes stochastic sampling differentiable with respect to encoder parameters mu and sigma",
+        "Guarantees zero reconstruction error",
+        "Eliminates KL divergence"
+      ],
+      answer: 1,
+      explanation: "Moving random sampling to an external standard normal eps lets gradients flow straight through mu and sigma."
+    },
+    {
+      id: "vae-q2",
+      type: "fill-blank",
+      prompt: "VAEs maximize the Evidence Lower Bound, commonly abbreviated as ______.",
+      answer: "ELBO",
+      acceptableAnswers: ["elbo"],
+      explanation: "The ELBO balances faithful data reconstruction against KL alignment to the Gaussian prior."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "VAEs encode smooth continuous latent manifolds instead of isolated memorization points.",
+    "The reparameterization trick preserves end-to-end backpropagation through Gaussian sampling.",
+    "Latent diffusion models use high-compression VAEs so denoising runs cheaply in compact latent grids."
+  ]}
+/>
+

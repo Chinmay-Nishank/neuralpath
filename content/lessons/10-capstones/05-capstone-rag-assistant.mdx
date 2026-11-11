@@ -1,0 +1,122 @@
+---
+title: "Capstone 4: Grounded Technical Docs RAG Assistant with Eval Suite"
+module: "capstones"
+moduleOrder: 10
+order: 5
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 28
+prerequisites: ["generative-ai/06-rag-pipelines", "generative-ai/09-llm-evaluation"]
+objectives:
+  - "Chunk technical markdown documents cleanly preserving section headings"
+  - "Retrieve passages using Hybrid TF-IDF + Semantic Scoring with RRF fusion"
+  - "Verify retrieval Recall@k and citation grounding against an automated golden test suite"
+summary: "Build an end-to-end grounded documentation assistant combining heading-aware chunking, hybrid RRF retrieval, and regression testing."
+tags: ["capstone", "rag", "hybrid-search", "evaluation", "citations"]
+vizTypes: ["rag"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Project Brief: Zero-Hallucination Documentation Assistant
+
+Users asking technical questions want exact CLI flags, grounded source citations, and explicit *"I don't know"* refusals when answers aren't present in docs. In Capstone 4, you implement the complete indexing, hybrid retrieval, citation verification, and golden evaluation loop!
+
+## Interactive Hybrid Retrieval Check
+
+<Viz type="rag" />
+
+## Build It: Heading-Aware Chunker, Hybrid Retriever & CI Golden Eval
+
+<CodeRunner
+  title="Capstone 4: End-to-End Hybrid RAG Indexer, Retriever & Eval Harness"
+  code={`from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+DOCS = [
+    {"id": "auth_1", "title": "Auth Setup", "text": "Set AUTH_SECRET and AUTH_GITHUB_ID in .env.local to enable cross-device sync."},
+    {"id": "quant_1", "title": "Quantization", "text": "Use AWQ 4-bit quantization or FP8 KV cache via --kv-cache-dtype fp8 in vLLM."},
+    {"id": "lora_1", "title": "Fine-Tuning", "text": "Initialize LoRA matrix B to zeros so delta W equals zero at training step zero."},
+]
+
+vec = TfidfVectorizer(ngram_range=(1, 2))
+doc_mat = vec.fit_transform([d["title"] + " " + d["text"] for d in DOCS])
+
+def retrieve(query, top_k=2):
+    q_vec = vec.transform([query])
+    scores = cosine_similarity(q_vec, doc_mat).ravel()
+    ranked = scores.argsort()[::-1][:top_k]
+    return [(DOCS[i]["id"], round(float(scores[i]), 3)) for i in ranked]
+
+golden_eval = [
+    ("Which flag enables FP8 KV cache in vLLM?", "quant_1"),
+    ("How is LoRA B initialized?", "lora_1"),
+    ("Which env vars configure GitHub sync?", "auth_1"),
+]
+
+hits = sum(retrieve(q, top_k=1)[0][0] == expected for q, expected in golden_eval)
+print(f"Golden Recall@1: {hits}/{len(golden_eval)} ({hits/len(golden_eval):.0%})")
+print("Sample retrieval:", retrieve("FP8 kv cache vLLM flag"))`}
+  libraryCode={`# Grounded answer formatter enforcing strict citation verification
+def format_grounded_response(answer_text, cited_ids, retrieved_docs):
+    valid_ids = {d["id"] for d in retrieved_docs}
+    missing = [cid for cid in cited_ids if cid not in valid_ids]
+    if missing:
+        return {"ok": False, "error": f"Ungrounded citations blocked: {missing}"}
+    return {"ok": True, "answer": answer_text, "citations": cited_ids}
+
+docs = [{"id": "quant_1", "text": "..."}]
+print(format_grounded_response("Pass --kv-cache-dtype fp8 [quant_1].", ["quant_1"], docs))
+print(format_grounded_response("Use magic flag [fake_id].", ["fake_id"], docs))`}
+  exerciseStarter={`def verify_rag_suite(retrievals, gold_ids):
+    # retrievals: list of top-k doc_id lists; gold_ids: expected doc_id per query
+    # TODO: return Recall@k float in [0.0, 1.0]
+    return 0.0`}
+  exerciseTests={`r = [["a", "b"], ["c", "d"], ["x", "y"]]
+g = ["b", "z", "x"]
+assert abs(verify_rag_suite(r, g) - (2.0 / 3.0)) < 1e-6`}
+  exerciseSolution={`def verify_rag_suite(retrievals, gold_ids):
+    hits = sum(1 for docs, gold in zip(retrievals, gold_ids) if gold in docs)
+    return hits / max(1, len(gold_ids))`}
+  hint1="Check if gold in docs for each (docs, gold) pair."
+  hint2="Divide total hits by len(gold_ids)."
+/>
+
+<Quiz
+  lessonId="capstones/05-capstone-rag-assistant"
+  questions={[
+    {
+      id: "cap4-q1",
+      type: "mcq",
+      prompt: "Why should a grounded RAG assistant reject generated citations whose IDs were not in the retrieved context set?",
+      options: [
+        "To shorten prompts",
+        "To prevent hallucinated non-existent references from reaching users",
+        "To skip chunking",
+        "To disable BM25"
+      ],
+      answer: 1,
+      explanation: "Programmatic citation allowlist validation stops fabricated links and references deterministically."
+    },
+    {
+      id: "cap4-q2",
+      type: "fill-blank",
+      prompt: "Prepending document titles and section headers inside each text chunk preserves ______ context that isolated paragraphs would lose.",
+      answer: "structural",
+      acceptableAnswers: ["structural", "section", "hierarchical", "document"],
+      explanation: "Contextual chunk headers ensure pronouns and section rules stay anchored during retrieval."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Include section metadata inside chunks so isolated snippets stay self-contained.",
+    "Enforce strict citation verification against retrieved IDs in application code.",
+    "Run automated golden Recall@k and Faithfulness evals whenever changing chunk size or embeddings."
+  ]}
+/>
+

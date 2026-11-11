@@ -1,0 +1,129 @@
+---
+title: "Fine-Tuning LLMs: SFT, LoRA, QLoRA (NF4) & Adapter Merging"
+module: "generative-ai"
+moduleOrder: 6
+order: 7
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 20
+prerequisites: ["foundations/05-linear-algebra-intuition", "generative-ai/04-scaling-laws-llms"]
+objectives:
+  - "Know when Supervised Fine-Tuning (SFT) is justified vs. prompting or RAG"
+  - "Implement Low-Rank Adaptation (LoRA) W + (alpha/r) * B @ A from scratch and in PyTorch"
+  - "Understand QLoRA 4-bit NormalFloat (NF4) base quantization and runtime adapter merging"
+summary: "Adapt billion-parameter LLMs on a single GPU using Low-Rank Adaptation (LoRA), 4-bit QLoRA, and curated instruction datasets."
+tags: ["lora", "qlora", "fine-tuning", "sft", "peft", "nf4"]
+vizTypes: ["quantization"]
+colabNotebook: "notebooks/generative-ai/lora-qlora.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Freezing the Giant, Tuning Low-Rank Deltas
+
+Full fine-tuning of a 70B LLM requires >1 TB of VRAM just for FP32 optimizer states and gradients. Yet Aghajanyan et al. and Hu et al. showed that task-specific weight updates live in a surprisingly tiny **low-rank subspace**!
+
+**<GlossaryTerm term="LoRA">LoRA</GlossaryTerm>** freezes the giant pretrained matrix $W_0 \in \mathbb{R}^{d \times k}$ and injects two tiny trainable matrices $B \in \mathbb{R}^{d \times r}$ and $A \in \mathbb{R}^{r \times k}$ with rank $r \ll \min(d, k)$ (typically $r = 8 \dots 32$):
+
+<Math tex="h = W_0 x + \frac{\alpha}{r} B A x" display />
+
+- **Initialization:** $A \sim \mathcal{N}(0, \sigma^2)$ and **$B = 0$**, so at step 0 $\Delta W = B A = 0$ and the pretrained model starts completely intact!
+- **QLoRA:** quantizes frozen $W_0$ to **4-bit NormalFloat (NF4)** with double quantization, fitting 70B fine-tuning onto a single GPU.
+- **Zero Inference Latency:** after training, merge $W_{\text{merged}} = W_0 + \frac{\alpha}{r}BA$ directly back into the weights (or hot-swap multi-tenant adapters dynamically in **vLLM** / **SGLang**!).
+
+<Viz type="quantization" />
+
+<Callout type="tip" title="Data Curation Beats Volume">
+  500 to 2,000 meticulously verified, diverse conversations formatted in the model's exact chat template consistently outperform 50,000 noisy synthetic rows. Always target both attention projections (`q_proj`, `v_proj`, `k_proj`, `o_proj`) and MLP projections (`gate_proj`, `up_proj`, `down_proj`) for strong domain adaptation.
+</Callout>
+
+## Runnable Code: LoRA Linear Layer From Scratch & Weight Merging
+
+<CodeRunner
+  title="Implementing LoRA Injection & Zero-Overhead Merging"
+  code={`import numpy as np
+
+d_in, d_out, rank, alpha = 512, 512, 8, 16
+full_params = d_in * d_out
+lora_params = d_in * rank + rank * d_out
+print(f"Full Linear params: {full_params:,} | LoRA (r={rank}) params: {lora_params:,} ({lora_params/full_params:.2%})")
+
+# Verify merged output == unfrozen residual output
+rng = np.random.default_rng(7)
+W0 = rng.normal(size=(d_out, d_in))
+A = rng.normal(0, 0.02, size=(rank, d_in))
+B = rng.normal(0, 0.02, size=(d_out, rank))
+x = rng.normal(size=(4, d_in))
+scale = alpha / rank
+
+y_unmerged = x @ W0.T + scale * ((x @ A.T) @ B.T)
+W_merged = W0 + scale * (B @ A)
+y_merged = x @ W_merged.T
+print("Max merge discrepancy:", float(np.max(np.abs(y_unmerged - y_merged))))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+class LoRALinear(nn.Module):
+    def __init__(self, in_f, out_f, r=8, alpha=16):
+        super().__init__()
+        self.base = nn.Linear(in_f, out_f, bias=False)
+        self.base.weight.requires_grad_(False)
+        self.A = nn.Parameter(torch.randn(r, in_f) * 0.02)
+        self.B = nn.Parameter(torch.zeros(out_f, r))
+        self.scale = alpha / r
+
+    def forward(self, x):
+        return self.base(x) + self.scale * (x @ self.A.t() @ self.B.t())
+
+layer = LoRALinear(64, 64, r=4)
+trainable = sum(p.numel() for p in layer.parameters() if p.requires_grad)
+total = sum(p.numel() for p in layer.parameters())
+print(f"Trainable params: {trainable} / {total} ({trainable/total:.1%})")`}
+  exerciseStarter={`def lora_param_count(d_in, d_out, rank):
+    # TODO: return total trainable params in A (rank * d_in) + B (d_out * rank)
+    return 0`}
+  exerciseTests={`assert lora_param_count(4096, 4096, 16) == 131072`}
+  exerciseSolution={`def lora_param_count(d_in, d_out, rank):
+    return rank * d_in + d_out * rank`}
+  hint1="Matrix A has shape (rank, d_in) and matrix B has shape (d_out, rank)."
+  hint2="Return rank * d_in + d_out * rank."
+/>
+
+<Quiz
+  lessonId="generative-ai/07-fine-tuning-lora-qlora"
+  questions={[
+    {
+      id: "lora-q1",
+      type: "mcq",
+      prompt: "Why does LoRA initialize matrix B to exact zeros while initializing A randomly?",
+      options: [
+        "To make gradients vanish on step 1",
+        "So delta W = B @ A starts at zero, keeping initial pretrained predictions intact while allowing non-zero gradients to flow into B",
+        "To force matrix A to remain constant",
+        "Because B is quantized to 1 bit"
+      ],
+      answer: 1,
+      explanation: "If both A and B were zero, gradients would be zero; initializing one to zero and one randomly preserves the base model at t=0 and breaks symmetry cleanly."
+    },
+    {
+      id: "lora-q2",
+      type: "fill-blank",
+      prompt: "QLoRA quantizes frozen base model weights to 4-bit NormalFloat (______) to fit large fine-tuning jobs on a single GPU.",
+      answer: "NF4",
+      acceptableAnswers: ["nf4"],
+      explanation: "NF4 is information-theoretically optimal for normally distributed neural network weights."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Use LoRA/QLoRA to adapt style, domain syntax, or distill specialized workflows without full optimizer VRAM.",
+    "Initialize LoRA B=0 so delta W starts at zero without disrupting pretrained behavior.",
+    "Merge B*A into W_0 for zero serving overhead, or hot-swap tenant adapters in vLLM/SGLang."
+  ]}
+/>
+

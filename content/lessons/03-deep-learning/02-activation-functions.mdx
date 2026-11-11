@@ -1,0 +1,128 @@
+---
+title: "Activation Functions: Sigmoid, Tanh, ReLU, GELU & SwiGLU"
+module: "deep-learning"
+moduleOrder: 3
+order: 2
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 15
+prerequisites: ["deep-learning/01-perceptron-to-mlp"]
+objectives:
+  - "Compare saturation behavior of Sigmoid/Tanh against non-saturating ReLU and GELU"
+  - "Diagnose dead ReLU neurons vs. smooth probabilistic gating in GELU and SiLU"
+  - "Implement SwiGLU feed-forward gating used in modern Llama and Gemma Transformers"
+summary: "Understand why activation derivatives dictate gradient flow, and why modern LLMs use GELU and SwiGLU over classical Sigmoid."
+tags: ["activation-functions", "relu", "gelu", "swiglu", "vanishing-gradients"]
+vizTypes: ["activations"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Gatekeepers of Gradient Flow
+
+Every <GlossaryTerm term="Activation Function">activation function</GlossaryTerm> controls two things: the **shape** of hidden features during the forward pass, and the **slope** $f'(z)$ multiplied into gradients during backpropagation.
+
+When Sigmoid saturates near $0$ or $1$, $f'(z) \approx 0$ kills gradients across deep layers. **ReLU** fixed this with constant slope $1$ for positive inputs, while modern Transformers smooth the kink around zero using **GELU** and gated **SwiGLU** blocks.
+
+## Interactive Lab: Comparing Curves & Derivatives
+
+Switch between **GELU**, **SiLU**, **ReLU**, **Tanh**, and **Sigmoid** to inspect both $f(x)$ (solid) and its derivative $f'(x)$ (dashed).
+
+<Viz type="activations" />
+
+<Callout type="math-deep-dive" title="SwiGLU in Modern Transformers">
+  Instead of $\text{ReLU}(x W_1) W_2$, modern LLMs (Llama 3/4, Qwen, Mistral) use **SwiGLU**, which multiplies a Swish/SiLU gate with a linear value projection:
+
+  <Math tex="\text{SwiGLU}(x) = \big(\text{SiLU}(x W_{\text{gate}}) \odot (x W_{\text{up}})\big) W_{\text{down}}" display />
+
+  Here $\text{SiLU}(z) = z \cdot \sigma(z)$ provides smooth gradients even for slightly negative inputs.
+</Callout>
+
+## Runnable Code: Implementing GELU, SiLU & SwiGLU
+
+<CodeRunner
+  title="Modern Activations: ReLU, GELU, and SwiGLU"
+  code={`import numpy as np
+
+x = np.array([-3.0, -1.0, 0.0, 1.0, 3.0])
+
+relu = np.maximum(0.0, x)
+silu = x / (1.0 + np.exp(-x))
+gelu = 0.5 * x * (1.0 + np.tanh(np.sqrt(2.0 / np.pi) * (x + 0.044715 * x**3)))
+
+print("x   :", x)
+print("ReLU:", np.round(relu, 3))
+print("SiLU:", np.round(silu, 3))
+print("GELU:", np.round(gelu, 3))`}
+  libraryCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class SwiGLU(nn.Module):
+    def __init__(self, d_model=16, d_ff=32):
+        super().__init__()
+        self.w_gate = nn.Linear(d_model, d_ff, bias=False)
+        self.w_up = nn.Linear(d_model, d_ff, bias=False)
+        self.w_down = nn.Linear(d_ff, d_model, bias=False)
+
+    def forward(self, x):
+        return self.w_down(F.silu(self.w_gate(x)) * self.w_up(x))
+
+layer = SwiGLU(16, 32)
+out = layer(torch.randn(2, 5, 16))
+print("SwiGLU output shape:", tuple(out.shape))`}
+  exerciseStarter={`import numpy as np
+
+def leaky_relu(x, alpha=0.01):
+    # TODO: return x where x > 0, else alpha * x
+    return x`}
+  exerciseTests={`v = np.array([-10.0, 0.0, 4.0])
+out = leaky_relu(v, alpha=0.1)
+assert np.allclose(out, [-1.0, 0.0, 4.0])`}
+  exerciseSolution={`import numpy as np
+
+def leaky_relu(x, alpha=0.01):
+    x = np.asarray(x, dtype=float)
+    return np.where(x > 0, x, alpha * x)`}
+  hint1="Use np.where(x > 0, x, alpha * x)."
+  hint2="Make sure x is converted with np.asarray(x, dtype=float)."
+/>
+
+<Quiz
+  lessonId="deep-learning/02-activation-functions"
+  questions={[
+    {
+      id: "act-q1",
+      type: "mcq",
+      prompt: "Why did deep networks struggle when using Sigmoid in hidden layers?",
+      options: [
+        "Sigmoid is unbounded above 1",
+        "Its derivative peaks at 0.25 and vanishes near 0 for large |z|, shrinking backprop gradients exponentially",
+        "Sigmoid cannot be computed in float32",
+        "Sigmoid outputs negative probabilities"
+      ],
+      answer: 1,
+      explanation: "Because max Sigmoid'(z) = 0.25, multiplying derivatives across 10 layers shrinks gradients by (0.25)^10."
+    },
+    {
+      id: "act-q2",
+      type: "fill-blank",
+      prompt: "Modern open-weight LLMs commonly pair SiLU gating with element-wise multiplication in an FFN block called ______.",
+      answer: "SwiGLU",
+      acceptableAnswers: ["swiglu"],
+      explanation: "SwiGLU combines Swish/SiLU gating with a bilinear up-projection."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Avoid Sigmoid inside deep hidden layers due to vanishing gradients and non-zero mean outputs.",
+    "ReLU enables fast non-saturating positive gradients; LeakyReLU prevents dead negative neurons.",
+    "GELU and SwiGLU dominate modern Transformers thanks to smooth curvature around zero."
+  ]}
+/>
+

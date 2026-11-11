@@ -1,0 +1,116 @@
+---
+title: "Generative Adversarial Networks (GANs): Minimax Games & Stability"
+module: "generative-ai"
+moduleOrder: 6
+order: 2
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 17
+prerequisites: ["generative-ai/01-autoencoders-vae"]
+objectives:
+  - "Formulate GAN training as a two-player minimax game between Generator and Discriminator"
+  - "Diagnose mode collapse, vanishing generator gradients, and discriminator overpowering"
+  - "Compare classic BCE GAN loss against Wasserstein (WGAN-GP) gradient penalties"
+summary: "Understand adversarial minimax training, why GANs suffer mode collapse, and why diffusion/flow models superseded them for diverse generation."
+tags: ["gan", "adversarial", "minimax", "mode-collapse", "wgan"]
+vizTypes: ["diffusion"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: The Forger vs. The Art Detective
+
+A **Generator** $G(z)$ transforms random noise into synthetic samples trying to fool a **Discriminator** $D(x)$, while $D(x)$ learns to separate real training data from fakes. Unlike VAEs (which minimize blurry pixel averages), GANs learn perceptual realism automatically—at the cost of delicate saddle-point instability!
+
+Common failure modes include **mode collapse** (the generator discovers one convincing sample—say, a single digit `"1"`—and ignores every other class) and saturating gradients when $D$ becomes too accurate too fast.
+
+<Viz type="diffusion" />
+
+<Callout type="math-deep-dive" title="Minimax & Non-Saturating Generator Objectives">
+  Classic GAN optimization solves:
+  <Math tex="\min_G \max_D \; \mathbb{E}_{x\sim p_{\text{data}}}[\log D(x)] + \mathbb{E}_{z\sim p_z}[\log(1 - D(G(z)))]" display />
+  In practice, $G$ maximizes $\log D(G(z))$ (the *non-saturating heuristic*) so gradients remain strong early when fakes look obviously wrong.
+</Callout>
+
+## Runnable Code: GAN Minimax Losses & Discriminator Training Step
+
+<CodeRunner
+  title="GAN Non-Saturating Generator Loss & Discriminator Equilibrium"
+  code={`import numpy as np
+
+def gan_losses(d_real_prob, d_fake_prob, eps=1e-9):
+    d_loss = -np.mean(np.log(np.clip(d_real_prob, eps, 1)) + np.log(np.clip(1.0 - d_fake_prob, eps, 1)))
+    # Non-saturating generator objective: maximize log D(G(z))
+    g_loss = -np.mean(np.log(np.clip(d_fake_prob, eps, 1)))
+    return float(d_loss), float(g_loss)
+
+# At Nash equilibrium p_data == p_g, optimal discriminator outputs 0.5 everywhere!
+print("Equilibrium (D=0.5):", [round(v, 4) for v in gan_losses(np.array([0.5, 0.5]), np.array([0.5, 0.5]))])
+print("Overpowered D(fake)=0.01:", [round(v, 4) for v in gan_losses(np.array([0.99]), np.array([0.01]))])`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+G = nn.Sequential(nn.Linear(8, 32), nn.LeakyReLU(0.2), nn.Linear(32, 4))
+D = nn.Sequential(nn.Linear(4, 32), nn.LeakyReLU(0.2), nn.Linear(32, 1))
+bce = nn.BCEWithLogitsLoss()
+
+real = torch.randn(8, 4)
+z = torch.randn(8, 8)
+fake = G(z)
+
+d_loss = bce(D(real), torch.ones(8, 1)) + bce(D(fake.detach()), torch.zeros(8, 1))
+g_loss = bce(D(fake), torch.ones(8, 1))
+print("D loss:", round(d_loss.item(), 3), "G loss:", round(g_loss.item(), 3))`}
+  exerciseStarter={`import numpy as np
+
+def wasserstein_critic_loss(real_scores, fake_scores):
+    # WGAN critic maximizes E[real] - E[fake], so minimize E[fake] - E[real]
+    # TODO: return float(mean(fake_scores) - mean(real_scores))
+    return 0.0`}
+  exerciseTests={`assert abs(wasserstein_critic_loss(np.array([3.0, 5.0]), np.array([1.0, 1.0])) - (-3.0)) < 1e-7`}
+  exerciseSolution={`import numpy as np
+
+def wasserstein_critic_loss(real_scores, fake_scores):
+    return float(np.mean(fake_scores) - np.mean(real_scores))`}
+  hint1="Compute np.mean(fake_scores) - np.mean(real_scores)."
+  hint2="Cast result to float."
+/>
+
+<Quiz
+  lessonId="generative-ai/02-gans"
+  questions={[
+    {
+      id: "gan-q1",
+      type: "mcq",
+      prompt: "What is mode collapse in GAN training?",
+      options: [
+        "The discriminator reaches 0% accuracy",
+        "The generator produces high-quality samples from only a tiny subset of data modes, losing diversity",
+        "Weights decay to exact zero",
+        "Batch normalization disables training"
+      ],
+      answer: 1,
+      explanation: "Mode collapse occurs when G learns a narrow set of outputs that fool D repeatedly rather than covering the full distribution."
+    },
+    {
+      id: "gan-q2",
+      type: "fill-blank",
+      prompt: "At the ideal Nash equilibrium where generated distribution equals real data, the optimal Discriminator outputs probability ______ everywhere.",
+      answer: "0.5",
+      acceptableAnswers: ["0.5", "1/2", "0.50"],
+      explanation: "When fake samples are indistinguishable from real ones, D*(x) = p_data / (p_data + p_g) = 0.5."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "GANs pit Generator against Discriminator in a zero-sum minimax game rather than maximizing explicit likelihood.",
+    "Call .detach() on fake samples when updating D so generator gradients aren't accidentally computed twice.",
+    "Non-saturating loss, spectral normalization, and WGAN gradient penalties stabilize training, though Flow Matching/Diffusion dominate modern synthesis."
+  ]}
+/>
+

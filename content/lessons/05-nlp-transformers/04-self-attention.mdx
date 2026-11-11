@@ -1,0 +1,196 @@
+---
+title: "Self-Attention: Queries, Keys, Values, and Scaled Dot-Product"
+module: "nlp-transformers"
+moduleOrder: 5
+order: 4
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 22
+prerequisites: ["foundations/01-what-is-a-model"]
+objectives:
+  - "Explain why fixed word vectors fail on polysemy and long-range pronoun resolution"
+  - "Compute Q, K, V projections and scaled dot-product attention step-by-step"
+  - "Derive why scaling by 1 / sqrt(d_k) stabilizes softmax gradients"
+  - "Contrast bidirectional encoder attention with causal autoregressive masking"
+summary: "Understand the core operation powering every modern Transformer: letting each token dynamically query and aggregate relevant context across the entire sequence."
+tags: ["self-attention", "transformers", "qkv", "softmax", "causal-mask"]
+vizTypes: ["attention"]
+colabNotebook: "notebooks/nlp-transformers/self-attention.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Words Change Meaning in Context
+
+Consider two nearly identical sentences:
+- *"The animal didn't cross the street because **it** was too **tired**."*
+- *"The animal didn't cross the street because **it** was too **wide**."*
+
+What does **"it"** refer to? Changing a single adjective at the end flips **"it"** from *animal* to *street*. Static lookup embeddings assign the exact same vector to `"it"` in both sentences.
+
+<GlossaryTerm term="Self-Attention">Self-attention</GlossaryTerm> solves this in $O(1)$ sequential path length: every token emits a **Query** (*"what am I looking for?"*), a **Key** (*"what do I advertise?"*), and a **Value** (*"what content do I share if selected?"*).
+
+## Interactive Lab: Inspecting Attention Heatmaps
+
+Click row **"it"** below, then switch between **"...because it was tired"** and **"...because it was wide"**. Enable **Causal Mask** to see how decoder LLMs (like GPT) forbid tokens from peeking at future positions.
+
+<Viz type="attention" defaultPreset="pronoun-tired" />
+
+## Step-by-Step Mechanics of Scaled Dot-Product Attention
+
+Given an input sequence matrix $X \in \mathbb{R}^{n \times d_{\text{model}}}$, learned projection matrices $W_Q, W_K \in \mathbb{R}^{d_{\text{model}} \times d_k}$ and $W_V \in \mathbb{R}^{d_{\text{model}} \times d_v}$ produce:
+
+<Math tex="Q = X W_Q, \qquad K = X W_K, \qquad V = X W_V" display />
+
+Each query vector $q_i$ scores compatibility with every key $k_j$ via dot product, scales by $\sqrt{d_k}$, optionally applies a causal mask $M$ ($-\infty$ above the diagonal), normalizes via softmax, and blends Value rows:
+
+<Math tex="\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^T}{\sqrt{d_k}} + M\right) V" display />
+
+<Callout type="math-deep-dive" title="Why Divide by √d_k?">
+  Suppose components of $q$ and $k$ are independent with mean $0$ and variance $1$. Their dot product $\sum_{i=1}^{d_k} q_i k_i$ has mean $0$ and variance $d_k$. When $d_k = 128$, dot products frequently hit $\pm 30$, pushing $\text{softmax}$ into saturated regions where gradients vanish toward zero. Dividing by $\sqrt{d_k}$ restores unit variance regardless of head dimension.
+</Callout>
+
+<Callout type="tip" title="Modern Practice: GQA and FlashAttention">
+  Production Transformers like Llama 3/4 and Qwen use **Grouped-Query Attention (<GlossaryTerm term="Grouped-Query Attention">GQA</GlossaryTerm>)** so multiple Query heads share Key/Value heads, cutting KV-cache memory during inference, while **FlashAttention** computes the exact same equation tile-by-tile in SRAM without materializing the $n \times n$ matrix in slow HBM memory.
+</Callout>
+
+## Runnable Code: NumPy From Scratch vs. PyTorch vs. Exercise
+
+<CodeRunner
+  title="Scaled Dot-Product Attention From Scratch and in PyTorch"
+  code={`import numpy as np
+
+def softmax(x, axis=-1):
+    shifted = x - np.max(x, axis=axis, keepdims=True)
+    exp_x = np.exp(shifted)
+    return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
+
+def self_attention(Q, K, V, causal=False):
+    d_k = Q.shape[-1]
+    scores = (Q @ K.T) / np.sqrt(d_k)
+    if causal:
+        n = Q.shape[0]
+        mask = np.triu(np.ones((n, n), dtype=bool), k=1)
+        scores = np.where(mask, -1e9, scores)
+    weights = softmax(scores, axis=-1)
+    return weights @ V, weights
+
+rng = np.random.default_rng(7)
+X = rng.normal(size=(4, 8))
+W_Q = rng.normal(scale=0.5, size=(8, 4))
+W_K = rng.normal(scale=0.5, size=(8, 4))
+W_V = rng.normal(scale=0.5, size=(8, 4))
+
+out, attn = self_attention(X @ W_Q, X @ W_K, X @ W_V, causal=True)
+print("Causal attention weights (row sums == 1):")
+print(np.round(attn, 3))
+print("Output shape:", out.shape)`}
+  libraryCode={`import torch
+import torch.nn.functional as F
+
+torch.manual_seed(7)
+# Batch=1, Heads=1, SeqLen=4, HeadDim=4
+Q = torch.randn(1, 1, 4, 4)
+K = torch.randn(1, 1, 4, 4)
+V = torch.randn(1, 1, 4, 4)
+
+# PyTorch 2.x native scaled_dot_product_attention (uses FlashAttention on GPU)
+out = F.scaled_dot_product_attention(Q, K, V, is_causal=True)
+print("PyTorch SDPA output shape:", tuple(out.shape))
+print("First token contextual vector:", out[0, 0, 0].detach().numpy().round(3))`}
+  colabCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MultiHeadSelfAttention(nn.Module):
+    def __init__(self, d_model=64, num_heads=4):
+        super().__init__()
+        assert d_model % num_heads == 0
+        self.num_heads = num_heads
+        self.head_dim = d_model // num_heads
+        self.qkv = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.out_proj = nn.Linear(d_model, d_model, bias=False)
+
+    def forward(self, x, is_causal=True):
+        B, T, C = x.shape
+        q, k, v = self.qkv(x).chunk(3, dim=-1)
+        q = q.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=is_causal)
+        return self.out_proj(y.transpose(1, 2).contiguous().view(B, T, C))
+
+mha = MultiHeadSelfAttention(64, 4)
+x = torch.randn(2, 16, 64)
+print("Multi-head output:", tuple(mha(x).shape))`}
+  exerciseStarter={`import numpy as np
+
+def scaled_attention_weights(Q, K):
+    # TODO: return softmax((Q @ K.T) / sqrt(d_k)) along axis=-1
+    d_k = Q.shape[-1]
+    return None`}
+  exerciseTests={`Q = np.array([[1.0, 0.0], [0.0, 1.0]])
+K = np.array([[1.0, 0.0], [0.0, 1.0]])
+W = scaled_attention_weights(Q, K)
+assert W.shape == (2, 2), f"Expected (2, 2), got {W.shape}"
+assert np.allclose(W.sum(axis=-1), np.ones(2)), "Rows must sum to 1"
+assert W[0, 0] > W[0, 1] and W[1, 1] > W[1, 0], "Matching Q and K should score higher"`}
+  exerciseSolution={`import numpy as np
+
+def scaled_attention_weights(Q, K):
+    d_k = Q.shape[-1]
+    scores = (Q @ K.T) / np.sqrt(d_k)
+    shifted = scores - np.max(scores, axis=-1, keepdims=True)
+    exp_s = np.exp(shifted)
+    return exp_s / np.sum(exp_s, axis=-1, keepdims=True)`}
+  hint1="Compute scores = (Q @ K.T) / np.sqrt(d_k) first."
+  hint2="Subtract row-wise max before np.exp(...) for numerically stable softmax."
+/>
+
+<Quiz
+  lessonId="nlp-transformers/04-self-attention"
+  questions={[
+    {
+      id: "attn-q1",
+      type: "mcq",
+      prompt: "Why do Transformer blocks scale dot products by 1 / sqrt(d_k) before applying softmax?",
+      options: [
+        "To make attention matrices sparse",
+        "To prevent large dot-product magnitudes from saturating softmax gradients",
+        "To enforce causal masking on future tokens",
+        "To reduce memory from O(n^2) to O(n)"
+      ],
+      answer: 1,
+      explanation: "Dot products grow in variance linearly with d_k; dividing by sqrt(d_k) keeps logits in a gradient-healthy variance-1 regime."
+    },
+    {
+      id: "attn-q2",
+      type: "fill-blank",
+      prompt: "To forbid token i from attending to future token j > i in GPT decoders, masked logits are set to ______ before softmax.",
+      answer: "-inf",
+      acceptableAnswers: ["-inf", "-infinity", "negative infinity", "-1e9"],
+      explanation: "Setting masked logits to -infinity drives exp(-inf) = 0 so zero probability mass leaks from future tokens."
+    },
+    {
+      id: "attn-q3",
+      type: "code-completion",
+      prompt: "Complete the NumPy scaled score matrix expression for 2D matrices Q and K:",
+      codeSnippet: "scores = (Q @ K.T) / _____",
+      answer: "np.sqrt(Q.shape[-1])",
+      acceptableAnswers: ["np.sqrt(Q.shape[-1])", "np.sqrt(d_k)", "math.sqrt(d_k)"],
+      explanation: "Scaling by sqrt(d_k) divides by the square root of the key/query head dimension."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Self-attention connects every token pair directly in one matrix multiply without sequential recurrence.",
+    "Queries ask what context is needed, Keys advertise token roles, and Values carry the blended information.",
+    "Causal masking blocks future positions (j > i) during autoregressive pretraining and generation."
+  ]}
+/>
+

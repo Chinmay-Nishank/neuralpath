@@ -1,0 +1,133 @@
+---
+title: "Exploration vs. Exploitation: Bandits, UCB & Thompson Sampling"
+module: "reinforcement-learning"
+moduleOrder: 7
+order: 6
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["foundations/07-probability-statistics"]
+objectives:
+  - "Frame online A/B optimization and prompt/model routing as Multi-Armed Bandits"
+  - "Compare naive epsilon-greedy against principled Upper Confidence Bound (UCB1) and Thompson Sampling"
+  - "Measure cumulative regret across exploration rounds"
+summary: "Balance trying uncertain arms against exploiting top performers using UCB confidence bonuses and Bayesian Thompson Sampling."
+tags: ["bandits", "ucb", "thompson-sampling", "exploration", "regret"]
+vizTypes: ["rl-gridworld"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Stopping A/B Waste Early
+
+Suppose you deploy three candidate LLM prompts or UI designs. Classical A/B testing sends 33% of traffic equally forever until a fixed horizon—wasting thousands of interactions on inferior variants.
+
+**Multi-Armed Bandits** dynamically shift traffic toward stronger arms while still sampling uncertain ones just enough to verify they aren't hidden winners:
+- **$\varepsilon$-greedy:** explores blindly with constant probability $\varepsilon$, wasting samples on known losers forever.
+- **UCB1 (Optimism in the Face of Uncertainty):** adds an uncertainty bonus $\propto \sqrt{\frac{\ln t}{N_a}}$ that shrinks as arm $a$ is tried often.
+- **Thompson Sampling:** maintains a Beta posterior per arm and picks whichever arm draws the highest random sample!
+
+<Viz type="rl-gridworld" />
+
+<Callout type="math-deep-dive" title="UCB1 Selection Formula">
+  At round $t$, pick arm $a$:
+  <Math tex="a_t = \arg\max_a \left(\hat{\mu}_a + c\sqrt{\frac{\ln t}{N_a}}\right)" display />
+  Unlike constant $\varepsilon$-greedy (linear regret), both UCB1 and Thompson Sampling achieve logarithmic regret $O(\ln T)$.
+</Callout>
+
+## Runnable Code: UCB1 vs. Thompson Sampling Simulation
+
+<CodeRunner
+  title="Comparing UCB1 and Thompson Sampling on a 3-Arm Bernoulli Bandit"
+  code={`import numpy as np
+
+true_rates = [0.25, 0.55, 0.72]  # Arm 2 is optimal
+
+def run_ucb1(rounds=400, seed=42):
+    counts = np.ones(3)
+    values = np.zeros(3)
+    regret = 0.0
+    rng = np.random.default_rng(seed)
+    for t in range(1, rounds + 1):
+        ucb = values + np.sqrt(2.0 * np.log(t) / counts)
+        arm = int(np.argmax(ucb))
+        reward = float(rng.random() < true_rates[arm])
+        counts[arm] += 1
+        values[arm] += (reward - values[arm]) / counts[arm]
+        regret += max(true_rates) - true_rates[arm]
+    return counts, round(regret, 2)
+
+counts, reg = run_ucb1()
+print("UCB1 arm pulls:", counts.astype(int).tolist(), "| Total regret:", reg)`}
+  libraryCode={`import numpy as np
+
+# Bayesian Thompson Sampling with Beta(alpha, beta) priors
+true_rates = [0.25, 0.55, 0.72]
+alpha = np.ones(3)
+beta = np.ones(3)
+rng = np.random.default_rng(7)
+pulls = np.zeros(3, dtype=int)
+
+for _ in range(400):
+    samples = rng.beta(alpha, beta)
+    arm = int(np.argmax(samples))
+    reward = int(rng.random() < true_rates[arm])
+    alpha[arm] += reward
+    beta[arm] += (1 - reward)
+    pulls[arm] += 1
+
+print("Thompson Sampling pulls:", pulls.tolist(), "| Best arm share:", round(float(pulls[2] / 400), 3))`}
+  exerciseStarter={`import math
+
+def ucb_score(mean_reward, total_rounds, arm_pulls, c=1.414):
+    # TODO: return mean_reward + c * sqrt(log(total_rounds) / arm_pulls)
+    return mean_reward`}
+  exerciseTests={`s1 = ucb_score(0.5, 100, 1, c=1.414)
+s2 = ucb_score(0.6, 100, 50, c=1.414)
+assert s1 > s2  # Rarely pulled arm gets strong exploration bonus`}
+  exerciseSolution={`import math
+
+def ucb_score(mean_reward, total_rounds, arm_pulls, c=1.414):
+    return float(mean_reward) + c * math.sqrt(math.log(max(1, total_rounds)) / max(1, arm_pulls))`}
+  hint1="Use math.log(total_rounds) / arm_pulls inside math.sqrt."
+  hint2="Multiply uncertainty width by c and add to mean_reward."
+/>
+
+<Quiz
+  lessonId="reinforcement-learning/06-exploration-multi-agent"
+  questions={[
+    {
+      id: "bandit-q1",
+      type: "mcq",
+      prompt: "Why does UCB1 outperform fixed epsilon-greedy in cumulative regret over long horizons?",
+      options: [
+        "UCB1 never picks suboptimal arms twice",
+        "Its uncertainty bonus shrinks proportionally to 1/sqrt(N_a), focusing pulls on competitive arms while stopping waste on clear losers",
+        "UCB1 requires zero math operations",
+        "epsilon-greedy does not update mean rewards"
+      ],
+      answer: 1,
+      explanation: "Constant epsilon wastes a fixed fraction of traffic forever, whereas UCB1 decays exploration cleanly per arm."
+    },
+    {
+      id: "bandit-q2",
+      type: "fill-blank",
+      prompt: "Thompson Sampling models Bernoulli reward posteriors cleanly using the ______ conjugate prior distribution.",
+      answer: "Beta",
+      acceptableAnswers: ["beta"],
+      explanation: "With a Beta(alpha, beta) prior, wins increment alpha and losses increment beta in closed form."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Multi-Armed Bandits minimize cumulative regret compared to static uniform A/B tests.",
+    "UCB1 explores via deterministic confidence upper bounds; Thompson Sampling explores via posterior sampling.",
+    "Contextual bandits extend this framework to personalized routing and recommender systems."
+  ]}
+/>
+

@@ -1,0 +1,126 @@
+---
+title: "Data Augmentation & Transfer Learning with Pretrained Backbones"
+module: "computer-vision"
+moduleOrder: 4
+order: 3
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["computer-vision/02-cnn-architectures"]
+objectives:
+  - "Apply label-preserving image augmentations (flips, color jitter, RandomErasing, MixUp)"
+  - "Fine-tune pretrained vision backbones using frozen linear probing vs. differential learning rates"
+  - "Avoid leaking test images or applying destructive augmentations (like flipping digits 6 vs 9)"
+summary: "Achieve strong vision accuracy on small custom datasets by combining label-safe augmentations and pretrained transfer learning."
+tags: ["transfer-learning", "data-augmentation", "fine-tuning", "mixup"]
+vizTypes: ["convolution"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Never Train a ResNet from Scratch on 500 Photos
+
+Early layers of ImageNet- or CLIP-pretrained models already detect universal oriented edges, corners, fur, metal, and textures. With **transfer learning**, you replace only the final classification head and adapt high-level features to your domain in minutes rather than days.
+
+Pair transfer learning with **data augmentation** (random crops, horizontal flips, slight color jitter, MixUp) so your model cannot memorize exact pixel positions.
+
+<Viz type="convolution" />
+
+<Callout type="warning" title="Only Apply Label-Preserving Augmentations">
+  Horizontal flipping preserves `"cat"` or `"car"`, but **vertical flipping** ruins street signs and horizontal flipping corrupts handwritten digits `"6"` vs `"9"` or left/right medical X-ray laterality!
+</Callout>
+
+<Callout type="math-deep-dive" title="MixUp Convex Data Augmentation">
+  MixUp blends two training samples $(x_i, y_i)$ and $(x_j, y_j)$ with $\lambda \sim \text{Beta}(\alpha, \alpha)$:
+
+  <Math tex="\tilde{x} = \lambda x_i + (1 - \lambda) x_j, \qquad \tilde{y} = \lambda y_i + (1 - \lambda) y_j" display />
+
+  MixUp smooths decision boundaries between classes and strongly improves probability calibration.
+</Callout>
+
+## Runnable Code: MixUp Augmentation & Differential Backbone LR
+
+<CodeRunner
+  title="Implementing MixUp Augmentation & Differential Learning Rates"
+  code={`import numpy as np
+
+def mixup_sample(x1, y1, x2, y2, lam=0.7):
+    x_mix = lam * x1 + (1.0 - lam) * x2
+    y_mix = lam * y1 + (1.0 - lam) * y2
+    return x_mix, y_mix
+
+img_a = np.ones((4, 4)) * 200.0
+img_b = np.zeros((4, 4))
+y_a = np.array([1.0, 0.0])  # Class 0
+y_b = np.array([0.0, 1.0])  # Class 1
+
+xm, ym = mixup_sample(img_a, y_a, img_b, y_b, lam=0.75)
+print("Blended pixel value:", xm[0, 0], "Blended soft label:", ym)`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+# Typical two-stage transfer learning setup with differential LRs
+backbone = nn.Sequential(nn.Conv2d(3, 16, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(1), nn.Flatten())
+head = nn.Linear(16, 5)
+
+optimizer = torch.optim.AdamW([
+    {"params": backbone.parameters(), "lr": 1e-4},  # Gentle update for pretrained features
+    {"params": head.parameters(), "lr": 1e-3},      # Faster adaptation for fresh head
+], weight_decay=0.01)
+
+print("Optimizer param groups configured:", len(optimizer.param_groups))`}
+  exerciseStarter={`import numpy as np
+
+def horizontal_flip(img_2d):
+    # TODO: reverse columns along axis=1 without modifying input in place
+    return img_2d`}
+  exerciseTests={`img = np.array([[1, 2, 3], [4, 5, 6]])
+flipped = horizontal_flip(img)
+assert np.array_equal(flipped, [[3, 2, 1], [6, 5, 4]])
+assert img[0, 0] == 1  # Original untouched`}
+  exerciseSolution={`import numpy as np
+
+def horizontal_flip(img_2d):
+    return np.asarray(img_2d)[:, ::-1].copy()`}
+  hint1="Slice columns backwards using [:, ::-1]."
+  hint2="Call .copy() to guarantee a fresh array."
+/>
+
+<Quiz
+  lessonId="computer-vision/03-data-augmentation-transfer"
+  questions={[
+    {
+      id: "tl-q1",
+      type: "mcq",
+      prompt: "When fine-tuning a pretrained vision backbone on a small custom dataset, why assign a 10x smaller learning rate to early backbone layers than the new head?",
+      options: [
+        "Early layers have no gradients",
+        "To avoid destroying general-purpose edge and texture filters with noisy initial gradients from the random head",
+        "Because AdamW forbids identical learning rates",
+        "To disable weight decay"
+      ],
+      answer: 1,
+      explanation: "Probing/warming up the fresh head first or using smaller backbone LRs preserves rich pretrained filters."
+    },
+    {
+      id: "tl-q2",
+      type: "fill-blank",
+      prompt: "Training only a freshly attached classification layer while keeping pretrained backbone weights frozen is called ______ probing.",
+      answer: "linear",
+      acceptableAnswers: ["linear"],
+      explanation: "Linear probing quickly evaluates frozen representation quality and stabilizes the classifier head before unfreezing."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Prefer transfer learning (linear probe first, then gentle unfreezing) over training CNNs from scratch.",
+    "Match augmentations strictly to domain invariances; never apply label-breaking flips.",
+    "Never apply random test-time augmentations unless explicitly using calibrated TTA."
+  ]}
+/>
+

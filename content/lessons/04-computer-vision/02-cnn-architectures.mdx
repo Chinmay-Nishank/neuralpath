@@ -1,0 +1,133 @@
+---
+title: "CNN Evolution: LeNet, VGG & ResNet Skip Connections"
+module: "computer-vision"
+moduleOrder: 4
+order: 2
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["computer-vision/01-convolutions-kernels"]
+objectives:
+  - "Trace architectural breakthroughs from LeNet-5 and AlexNet to VGG and ResNet"
+  - "Explain why plain 56-layer CNNs perform worse than 20-layer CNNs (degradation problem)"
+  - "Implement a Residual Block with identity and projection skip connections in PyTorch"
+summary: "Trace how CNN architectures solved spatial hierarchy and depth degradation via 3x3 stacks and ResNet residual highways."
+tags: ["cnn", "resnet", "skip-connections", "vgg", "lenet"]
+vizTypes: ["convolution"]
+colabNotebook: "notebooks/computer-vision/resnet.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Why Going Deeper Broke—Until Skip Connections
+
+In 2012–2014, **AlexNet** and **VGG** showed that replacing large $7\times 7$ filters with stacked $3\times 3$ convolutions expanded effective receptive fields with fewer parameters. Yet stacking beyond 30 plain convolutional layers mysteriously made **training error climb higher** (not overfitting—pure optimization degradation!).
+
+**ResNet** (He et al., 2015) solved this permanently by rewriting each block to predict a **residual correction** added to its input:
+
+<Math tex="y = \mathcal{F}(x) + x" display />
+
+If a deeper layer isn't needed yet, weights only need to push $\mathcal{F}(x) \to 0$ rather than reconstructing an identity mapping through non-linear layers—and gradients get an unimpeded additive highway during backpropagation!
+
+<Viz type="convolution" />
+
+<Callout type="math-deep-dive" title="Gradient Highway via Residual Addition">
+  Differentiating $x_{L} = x_l + \sum_{i=l}^{L-1} \mathcal{F}(x_i)$ gives:
+
+  <Math tex="\frac{\partial \mathcal{L}}{\partial x_l} = \frac{\partial \mathcal{L}}{\partial x_L} \left(1 + \frac{\partial}{\partial x_l}\sum_{i=l}^{L-1}\mathcal{F}(x_i)\right)" display />
+
+  The constant $1$ ensures gradients reach early layers cleanly even in 152-layer networks.
+</Callout>
+
+## Runnable Code: Residual Block Signal Check in NumPy vs. PyTorch
+
+<CodeRunner
+  title="Building a ResNet Residual Block with Skip Connections"
+  code={`import numpy as np
+
+# Compare two consecutive 3x3 Conv receptive field vs single 5x5:
+# Two 3x3 filters cover a 5x5 field with 2*(3*3)=18 weights vs 25!
+print("Params in one 5x5 filter :", 5 * 5)
+print("Params in two 3x3 filters:", 2 * (3 * 3))
+
+# Residual block forward simulation
+x = np.array([1.0, -0.5, 2.0])
+W1 = np.eye(3) * 0.1
+residual = np.maximum(0.0, x @ W1)
+out = np.maximum(0.0, residual + x)
+print("Residual output preserves input magnitude:", np.round(out, 3))`}
+  libraryCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(channels)
+
+    def forward(self, x):
+        h = F.relu(self.bn1(self.conv1(x)))
+        h = self.bn2(self.conv2(h))
+        return F.relu(h + x)
+
+block = ResidualBlock(32)
+x = torch.randn(2, 32, 16, 16)
+print("ResNet block output shape:", tuple(block(x).shape))`}
+  exerciseStarter={`import numpy as np
+
+def residual_step(x, Fx):
+    # TODO: return ReLU(Fx + x)
+    return x`}
+  exerciseTests={`x = np.array([2.0, -3.0, 0.5])
+Fx = np.array([-0.5, 1.0, 0.5])
+out = residual_step(x, Fx)
+assert np.allclose(out, [1.5, 0.0, 1.0])`}
+  exerciseSolution={`import numpy as np
+
+def residual_step(x, Fx):
+    return np.maximum(0.0, np.asarray(Fx, dtype=float) + np.asarray(x, dtype=float))`}
+  hint1="Add Fx and x element-wise."
+  hint2="Apply ReLU via np.maximum(0.0, ...)."
+/>
+
+<Quiz
+  lessonId="computer-vision/02-cnn-architectures"
+  questions={[
+    {
+      id: "cnn-q1",
+      type: "mcq",
+      prompt: "What primary obstacle did ResNet skip connections overcome?",
+      options: [
+        "Images having 3 RGB channels",
+        "Optimization degradation and vanishing gradients in very deep networks",
+        "Lack of GPUs in 2015",
+        "Pooling layers increasing spatial resolution"
+      ],
+      answer: 1,
+      explanation: "Skip connections provide a direct gradient highway and make learning near-identity mappings trivial."
+    },
+    {
+      id: "cnn-q2",
+      type: "fill-blank",
+      prompt: "Two stacked 3x3 convolutions cover the same spatial receptive field as a single ______ convolution with fewer parameters.",
+      answer: "5x5",
+      acceptableAnswers: ["5x5", "5 x 5"],
+      explanation: "A 3x3 layer followed by another 3x3 layer spans a 5x5 effective receptive field (18 params vs. 25)."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Stacked 3x3 convolutions yield larger receptive fields with extra non-linearity and fewer parameters.",
+    "Residual skip connections y = F(x) + x turned 100+ layer networks into standard trainable architectures.",
+    "Global Average Pooling at the end of CNNs replaces giant dense heads, shrinking parameter bloat."
+  ]}
+/>
+

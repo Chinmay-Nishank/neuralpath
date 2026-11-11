@@ -1,0 +1,134 @@
+---
+title: "Reproducibility, Data Versioning & Experiment Tracking"
+module: "mlops"
+moduleOrder: 8
+order: 1
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 15
+prerequisites: ["classical-ml/05-cross-validation-metrics"]
+objectives:
+  - "Pin seeds, library versions, dataset hashes, and git commits per training run"
+  - "Log metrics, hyperparameters, and model artifacts cleanly without spreadsheet drift"
+  - "Detect silent training non-determinism across CPU/GPU runs"
+summary: "Make every ML training run strictly reproducible by hashing datasets, pinning configs, and logging structured experiment lineage."
+tags: ["mlops", "reproducibility", "experiment-tracking", "hashing", "lineage"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: "It Worked on My Laptop Tuesday" Breaks ML Teams
+
+In traditional software, code + compiler determines the binary. In Machine Learning, the resulting artifact depends on **four moving axes**:
+1. Code version (`git rev-parse HEAD`)
+2. Exact training data snapshot (SHA-256 manifest or DVC/LakeFS hash)
+3. Hyperparameters & prompt templates (`config.yaml`)
+4. Random seeds & hardware determinism (`PYTHONHASHSEED`, `np.random.default_rng`, `torch.manual_seed`)
+
+Tracking every run structurally (via MLflow, Weights & Biases, or immutable JSON manifests) ensures you can reproduce, audit, or roll back any model artifact in minutes.
+
+<Viz type="roc-pr" />
+
+<Callout type="tip" title="Snapshot Feature Schemas Alongside Model Weights">
+  Never save a bare `model.pkl` without the exact feature column names, ordering, scaler stats, and preprocessing pipeline inside the same bundle—otherwise column reordering in production fails silently.
+</Callout>
+
+<Callout type="math-deep-dive" title="Content-Addressable Data Hashing">
+  Hashing raw CSV/Parquet bytes via SHA-256 guarantees cryptographic immutability: changing a single byte in one training row changes the dataset digest completely, linking every trained checkpoint unambiguously to its exact training distribution.
+</Callout>
+
+## Runnable Code: Deterministic Dataset Hashing & Experiment Logger
+
+<CodeRunner
+  title="Content-Addressable Dataset Hashing & Experiment Run Manifest"
+  code={`import hashlib, json, numpy as np
+
+def dataset_digest(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()[:16]
+
+# Reproducible seed check
+r1 = np.random.default_rng(42).normal(size=4)
+r2 = np.random.default_rng(42).normal(size=4)
+assert np.allclose(r1, r2)
+
+manifest = {
+    "dataset_sha": dataset_digest("/datasets/housing_mini.csv"),
+    "seed": 42,
+    "model": "Ridge(alpha=1.0)",
+    "cv_r2": 0.912,
+}
+print("Immutable experiment manifest:", json.dumps(manifest, indent=2))`}
+  libraryCode={`import json, os, tempfile
+from sklearn.linear_model import Ridge
+import pandas as pd
+
+df = pd.read_csv("/datasets/housing_mini.csv")
+model = Ridge(alpha=1.0).fit(df[["area_sqft", "bedrooms"]], df["price_k"])
+
+# Save structured model metadata + weights safely as JSON (zero arbitrary pickle execution!)
+artifact = {
+    "features": ["area_sqft", "bedrooms"],
+    "coef": model.coef_.tolist(),
+    "intercept": float(model.intercept_),
+}
+print("Portable JSON model artifact:", json.dumps(artifact))`}
+  exerciseStarter={`import hashlib, json
+
+def config_hash(cfg_dict):
+    # TODO: canonicalize cfg_dict with json.dumps(..., sort_keys=True) and return first 12 hex chars of sha256
+    return ""`}
+  exerciseTests={`h1 = config_hash({"lr": 0.01, "epochs": 10})
+h2 = config_hash({"epochs": 10, "lr": 0.01})
+assert len(h1) == 12 and h1 == h2`}
+  exerciseSolution={`import hashlib, json
+
+def config_hash(cfg_dict):
+    canonical = json.dumps(cfg_dict, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()[:12]`}
+  hint1="Pass sort_keys=True to json.dumps so key insertion order doesn't alter the hash."
+  hint2="Hash encoded UTF-8 bytes with hashlib.sha256(...).hexdigest()[:12]."
+/>
+
+<Quiz
+  lessonId="mlops/01-experiment-tracking"
+  questions={[
+    {
+      id: "exp-q1",
+      type: "mcq",
+      prompt: "Why should model weights be stored alongside an explicit feature schema and preprocessing pipeline?",
+      options: [
+        "It shrinks file size by 90%",
+        "Preventing silent feature reordering, missing-value, or scaling skew between training and inference",
+        "Python pickle cannot store floats alone",
+        "To disable cross-validation"
+      ],
+      answer: 1,
+      explanation: "Training-serving skew occurs whenever production preprocessing diverges from training preprocessing."
+    },
+    {
+      id: "exp-q2",
+      type: "fill-blank",
+      prompt: "Passing ______=True when serializing config dictionaries ensures identical keys always yield identical SHA-256 digests.",
+      answer: "sort_keys",
+      acceptableAnswers: ["sort_keys"],
+      explanation: "sort_keys=True guarantees deterministic JSON key ordering across runs."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Track four pillars per run: code commit, data SHA hash, hyperparameters, and random seeds.",
+    "Always bundle preprocessing transforms inside the deployed model pipeline.",
+    "Avoid untrusted pickle files across service boundaries; prefer ONNX, safetensors, or typed JSON artifacts."
+  ]}
+/>
+

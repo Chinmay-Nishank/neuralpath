@@ -1,0 +1,132 @@
+---
+title: "Encoder Transformers (BERT): Masked Language Modeling & Bidirectional Context"
+module: "nlp-transformers"
+moduleOrder: 5
+order: 6
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["nlp-transformers/04-self-attention"]
+objectives:
+  - "Contrast bidirectional encoder attention (BERT) with causal decoder attention (GPT)"
+  - "Understand Masked Language Modeling (MLM) and contrastive sentence embeddings"
+  - "Choose encoder vs. decoder models for classification, NER, and semantic retrieval"
+summary: "See how bidirectional encoder Transformers excel at text classification, token tagging, and dense retrieval embeddings."
+tags: ["bert", "encoder", "masked-language-modeling", "embeddings", "retrieval"]
+vizTypes: ["attention"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Reading Left and Right Simultaneously
+
+When classifying sentiment, tagging named entities, or generating search embeddings, future tokens aren't forbidden—they're part of the input document!
+
+**Encoder Transformers** (like BERT, RoBERTa, ModernBERT, and BGE/E5 embedding models) disable causal masking so every token attends to **all** surrounding tokens simultaneously. During pretraining, 15% of tokens are masked (`[MASK]`), and the model reconstructs the missing tokens from bidirectional context.
+
+## Interactive Lab: Bidirectional vs. Causal Attention
+
+Toggle **Causal Mask** off vs. on below to observe how bidirectional encoders let earlier words look ahead to resolving context like `"tired"` or `"wide"`.
+
+<Viz type="attention" defaultPreset="pronoun-tired" />
+
+<Callout type="tip" title="Mean Pooling Beats [CLS] for Retrieval Embeddings">
+  While original BERT classified sequences from a special `[CLS]` token, modern bi-encoder embedding models compute **attention-masked mean pooling** over all token embeddings followed by L2 normalization.
+</Callout>
+
+<Callout type="math-deep-dive" title="Masked Language Modeling Loss">
+  Given masked token indices $\mathcal{M}$ inside sequence $\tilde{x}$:
+  <Math tex="\mathcal{L}_{\text{MLM}} = -\frac{1}{|\mathcal{M}|} \sum_{i \in \mathcal{M}} \log P(x_i \mid \tilde{x})" display />
+</Callout>
+
+## Runnable Code: Masked Language Modeling Masker & Attention Mean Pooling
+
+<CodeRunner
+  title="MLM Token Masking & Attention-Masked Mean Pooling"
+  code={`import numpy as np
+
+def masked_mean_pool(token_embs, attention_mask):
+    # token_embs: (B, T, d), attention_mask: (B, T) with 1 for real tokens, 0 for padding
+    mask = attention_mask[:, :, None].astype(float)
+    summed = np.sum(token_embs * mask, axis=1)
+    counts = np.maximum(np.sum(mask, axis=1), 1e-9)
+    pooled = summed / counts
+    return pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
+
+embs = np.array([
+    [[1.0, 0.0], [3.0, 0.0], [99.0, 99.0]],  # Last token is padding!
+])
+mask = np.array([[1, 1, 0]])
+print("Clean L2-normalized pooled embedding:", masked_mean_pool(embs, mask).round(3))`}
+  libraryCode={`import torch
+
+def create_mlm_inputs(token_ids, mask_token_id=103, mask_prob=0.15):
+    torch.manual_seed(42)
+    labels = token_ids.clone()
+    probs = torch.full(token_ids.shape, mask_prob)
+    masked_indices = torch.bernoulli(probs).bool()
+    labels[~masked_indices] = -100  # Ignored by CrossEntropyLoss
+    inputs = token_ids.clone()
+    inputs[masked_indices] = mask_token_id
+    return inputs, labels
+
+ids = torch.tensor([[101, 2023, 2003, 1037, 2742, 102]])
+inp, lbl = create_mlm_inputs(ids, mask_prob=0.35)
+print("Masked input IDs:", inp.tolist())
+print("MLM target labels:", lbl.tolist())`}
+  exerciseStarter={`import numpy as np
+
+def mean_pool_single(vectors, mask):
+    # vectors shape: (T, d), mask shape: (T,) with 1s and 0s
+    # TODO: return mean of vectors where mask == 1
+    return np.zeros(vectors.shape[1])`}
+  exerciseTests={`v = np.array([[2.0, 4.0], [6.0, 8.0], [100.0, 100.0]])
+m = np.array([1, 1, 0])
+assert np.allclose(mean_pool_single(v, m), [4.0, 6.0])`}
+  exerciseSolution={`import numpy as np
+
+def mean_pool_single(vectors, mask):
+    m = np.asarray(mask, dtype=float)[:, None]
+    return np.sum(np.asarray(vectors, dtype=float) * m, axis=0) / np.maximum(np.sum(m), 1e-9)`}
+  hint1="Broadcast mask[:, None] across vectors before summing along axis=0."
+  hint2="Divide by sum(mask) rather than len(vectors) so padding tokens are ignored."
+/>
+
+<Quiz
+  lessonId="nlp-transformers/06-bert-encoders"
+  questions={[
+    {
+      id: "bert-q1",
+      type: "mcq",
+      prompt: "Why does CrossEntropyLoss ignore target index -100 in Masked Language Modeling?",
+      options: [
+        "Only masked positions (~15%) should contribute loss; unmasked tokens are untouched inputs",
+        "-100 means end-of-sentence",
+        "It speeds up GPU softmax",
+        "Padding tokens always have token ID -100"
+      ],
+      answer: 0,
+      explanation: "Setting unmasked positions to ignore_index=-100 restricts training loss strictly to predicting masked tokens."
+    },
+    {
+      id: "bert-q2",
+      type: "fill-blank",
+      prompt: "Unlike GPT decoders, BERT encoders omit ______ masking so tokens attend to both left and right context.",
+      answer: "causal",
+      acceptableAnswers: ["causal", "autoregressive", "look-ahead"],
+      explanation: "Encoder models use full bidirectional self-attention across the sequence."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Bidirectional encoders read full context simultaneously, making them ideal for classification and dense embeddings.",
+    "Masked Language Modeling trains representations by reconstructing randomly hidden tokens.",
+    "Always exclude padding tokens via attention masks when mean-pooling embeddings."
+  ]}
+/>
+

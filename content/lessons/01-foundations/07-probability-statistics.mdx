@@ -1,0 +1,130 @@
+---
+title: "Probability, Distributions, Bayes' Rule & Information Theory"
+module: "foundations"
+moduleOrder: 1
+order: 7
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["foundations/06-calculus-gradients"]
+objectives:
+  - "Update beliefs from priors and likelihoods using Bayes' theorem"
+  - "Interpret Gaussian mean/variance, expectation, and maximum likelihood estimation"
+  - "Connect Shannon entropy and KL divergence directly to cross-entropy loss"
+summary: "Build intuition for uncertainty, Bayes' theorem, probability distributions, and the information-theoretic roots of cross-entropy loss."
+tags: ["probability", "bayes", "entropy", "kl-divergence", "cross-entropy"]
+vizTypes: ["probability"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Why Probabilistic Thinking Drives Modern AI
+
+Machine learning models rarely guarantee absolute certainty. Classifiers output probabilities over labels; language models predict a probability distribution over the next token; diffusion models learn to reverse noisy probability distributions.
+
+## Interactive Lab: Gaussian Density & Entropy
+
+Adjust $\mu$ and $\sigma$ below to see how tightening variance concentrates density and shrinks uncertainty (entropy).
+
+<Viz type="probability" />
+
+## From Bayes' Rule to Cross-Entropy
+
+Bayes' theorem updates our prior belief $P(H)$ after observing evidence $E$:
+
+<Math tex="P(H \mid E) = \frac{P(E \mid H)\,P(H)}{P(E)}" display />
+
+<Callout type="math-deep-dive" title="Entropy, KL Divergence, and Cross-Entropy Loss">
+  For a true distribution $p$ and predicted distribution $q$:
+  - **Entropy:** $H(p) = -\sum_i p_i \log p_i$ (minimum average bits needed under truth $p$).
+  - **Cross-Entropy:** $H(p, q) = -\sum_i p_i \log q_i$.
+  - **KL Divergence:** $D_{\text{KL}}(p \| q) = H(p, q) - H(p) \ge 0$.
+
+  Because $H(p)$ is fixed for ground truth labels, minimizing cross-entropy loss is mathematically identical to minimizing KL divergence between predicted probabilities and true data.
+</Callout>
+
+## Runnable Code: Bayes Updater & Cross-Entropy Loss
+
+<CodeRunner
+  title="Bayes Theorem & Cross-Entropy / KL Divergence"
+  code={`import numpy as np
+
+# Bayes: disease prevalence 1%, sensitivity 95%, false positive rate 5%
+prior = 0.01
+sensitivity = 0.95
+false_pos = 0.05
+evidence = sensitivity * prior + false_pos * (1.0 - prior)
+posterior = (sensitivity * prior) / evidence
+print(f"Posterior P(Disease | Positive Test): {posterior:.3f}")
+
+# Information theory: true one-hot vs predicted softmax probabilities
+p = np.array([0.0, 1.0, 0.0])
+q = np.array([0.15, 0.75, 0.10])
+cross_entropy = -np.sum(p * np.log(q + 1e-12))
+print(f"Cross-entropy loss (nats): {cross_entropy:.4f}")`}
+  libraryCode={`import scipy.stats as stats
+import numpy as np
+
+# Log-likelihood of observations under N(mu=2.0, sigma=1.2)
+obs = np.array([1.8, 2.3, 2.1, 1.5])
+ll = np.sum(stats.norm.logpdf(obs, loc=2.0, scale=1.2))
+print("Total Gaussian log-likelihood:", round(float(ll), 4))`}
+  exerciseStarter={`import numpy as np
+
+def kl_divergence(p, q):
+    # TODO: compute sum(p * log(p / q)) safely for non-zero p entries
+    return 0.0`}
+  exerciseTests={`p = np.array([0.5, 0.5])
+q1 = np.array([0.5, 0.5])
+q2 = np.array([0.9, 0.1])
+assert abs(kl_divergence(p, q1)) < 1e-7
+assert kl_divergence(p, q2) > 0.5`}
+  exerciseSolution={`import numpy as np
+
+def kl_divergence(p, q):
+    p = np.asarray(p, dtype=float)
+    q = np.asarray(q, dtype=float)
+    mask = p > 0
+    return float(np.sum(p[mask] * np.log(p[mask] / np.maximum(q[mask], 1e-12))))`}
+  hint1="Only entries where p > 0 contribute to p * log(p / q)."
+  hint2="Guard q against zero using np.maximum(q, 1e-12)."
+/>
+
+<Quiz
+  lessonId="foundations/07-probability-statistics"
+  questions={[
+    {
+      id: "prob-q1",
+      type: "mcq",
+      prompt: "What happens to Cross-Entropy loss H(p, q) when predicted distribution q matches true distribution p perfectly?",
+      options: [
+        "It equals infinity",
+        "It equals the entropy H(p) and KL(p || q) = 0",
+        "It becomes negative",
+        "It equals 1.0"
+      ],
+      answer: 1,
+      explanation: "When q = p, KL(p || q) = 0 and H(p, q) reaches its lower bound H(p) (which is 0 for one-hot labels)."
+    },
+    {
+      id: "prob-q2",
+      type: "fill-blank",
+      prompt: "In Bayes' theorem, P(H) before observing new data is called the ______ probability.",
+      answer: "prior",
+      acceptableAnswers: ["prior"],
+      explanation: "The prior P(H) encodes initial belief before conditioning on evidence E."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Bayes' rule combines prior probabilities with data likelihoods to form updated posteriors.",
+    "Maximizing Gaussian log-likelihood is equivalent to minimizing Mean Squared Error.",
+    "Minimizing cross-entropy loss directly minimizes KL divergence from model predictions to true labels."
+  ]}
+/>
+

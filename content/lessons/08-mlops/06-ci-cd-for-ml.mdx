@@ -1,0 +1,109 @@
+---
+title: "CI/CD for ML Systems: Shadow Deployments, Canary Rollouts & Eval Gates"
+module: "mlops"
+moduleOrder: 8
+order: 6
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 16
+prerequisites: ["mlops/05-data-concept-drift", "generative-ai/09-llm-evaluation"]
+objectives:
+  - "Automate offline golden evaluation gates in CI before model checkpoints promote"
+  - "Compare Shadow Deployment (zero user impact) vs. Canary Rollouts (progressive traffic shift)"
+  - "Verify slice regressions so aggregate gains don't mask catastrophic failures on minority slices"
+summary: "Ship model and prompt updates safely using CI evaluation gates, slice checks, shadow deployments, and progressive canary rollouts."
+tags: ["ci-cd", "canary", "shadow-deployment", "eval-gates", "mlops"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Never Promote a Model on Aggregate Score Alone
+
+Suppose candidate model `v2` raises overall F1 from `0.88` to `0.90`, so you ship it to 100% of traffic—only to discover `v2` dropped accuracy on mobile iOS users or Spanish queries from `0.85` to `0.41`!
+
+Production ML CI/CD enforces two ironclad rules:
+1. **Slice-Aware Eval Gates:** candidate models must meet minimum quality thresholds on both global metrics *and* critical subgroup slices before merging.
+2. **Staged Traffic Exposure:** run **Shadow Mode** first (mirror live requests asynchronously to `v2`, ignore its response, verify latency/crashes), then shift **Canary** traffic `1% -> 10% -> 50% -> 100%` with automated rollback on error spikes.
+
+<Viz type="roc-pr" />
+
+<Callout type="math-deep-dive" title="Minimum Sample Size for Canary Difference Detection">
+  Shipping a canary to 0.1% traffic for 5 minutes rarely achieves statistical power to detect a 2% conversion drop. Calculate required canary sample count $n \approx \frac{16 \sigma^2}{\Delta^2}$ before declaring a rollout clean!
+</Callout>
+
+## Runnable Code: Slice-Aware CI Eval Gate Check
+
+<CodeRunner
+  title="Implementing a Slice-Aware CI Deployment Gate"
+  code={`def evaluate_release_gate(baseline_slices, candidate_slices, max_allowed_drop=0.02):
+    failures = []
+    for slice_name, base_score in baseline_slices.items():
+        cand_score = candidate_slices.get(slice_name, 0.0)
+        if cand_score < base_score - max_allowed_drop:
+            failures.append((slice_name, base_score, cand_score))
+    return len(failures) == 0, failures
+
+base = {"global": 0.88, "mobile": 0.85, "desktop": 0.90, "es_lang": 0.84}
+cand_bad = {"global": 0.91, "mobile": 0.86, "desktop": 0.93, "es_lang": 0.72}
+cand_good = {"global": 0.90, "mobile": 0.86, "desktop": 0.91, "es_lang": 0.85}
+
+print("Bad candidate passes? :", evaluate_release_gate(base, cand_bad))
+print("Good candidate passes?:", evaluate_release_gate(base, cand_good))`}
+  libraryCode={`# Canary traffic router hashing user_id deterministically so sessions don't flip-flop
+import hashlib
+
+def assign_bucket(user_id, canary_percent=10):
+    digest = int(hashlib.sha256(user_id.encode()).hexdigest()[:8], 16) % 100
+    return "canary_v2" if digest < canary_percent else "prod_v1"
+
+assignments = [assign_bucket(f"user_{i}", canary_percent=20) for i in range(10)]
+print("Deterministic canary assignments:", assignments)`}
+  exerciseStarter={`def passes_eval_gate(metrics, thresholds):
+    # TODO: return True iff for every key in thresholds, metrics.get(key, 0.0) >= thresholds[key]
+    return False`}
+  exerciseTests={`assert passes_eval_gate({"f1": 0.91, "p99_inv": 0.95}, {"f1": 0.85, "p99_inv": 0.90}) is True
+assert passes_eval_gate({"f1": 0.82, "p99_inv": 0.95}, {"f1": 0.85, "p99_inv": 0.90}) is False`}
+  exerciseSolution={`def passes_eval_gate(metrics, thresholds):
+    return all(metrics.get(k, 0.0) >= min_val for k, min_val in thresholds.items())`}
+  hint1="Iterate over thresholds.items() and compare against metrics.get(k, 0.0)."
+  hint2="Use Python's built-in all(...)."
+/>
+
+<Quiz
+  lessonId="mlops/06-ci-cd-for-ml"
+  questions={[
+    {
+      id: "cicd-q1",
+      type: "mcq",
+      prompt: "What happens in a Shadow Deployment of a new model candidate?",
+      options: [
+        "50% of users see the new model's answers immediately",
+        "Production requests mirror asynchronously to the candidate for latency/output logging while users continue receiving the stable baseline response",
+        "Training data is deleted after deployment",
+        "Only unit tests run without traffic"
+      ],
+      answer: 1,
+      explanation: "Shadowing validates real-world latency, crashes, and output distribution with zero risk to live users."
+    },
+    {
+      id: "cicd-q2",
+      type: "fill-blank",
+      prompt: "Checking subgroup performance across device types, languages, or regions rather than global accuracy alone prevents hidden ______ regressions.",
+      answer: "slice",
+      acceptableAnswers: ["slice", "subgroup"],
+      explanation: "Slice evaluations catch silent drops on minority cohorts masked by aggregate means."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Gate every model, prompt, and RAG change on automated CI checks covering global and slice metrics.",
+    "Use shadow mode first to catch latency/schema failures safely, then step up deterministic canary percentages.",
+    "Keep instant one-click rollback artifacts pinned alongside active deployments."
+  ]}
+/>

@@ -1,0 +1,168 @@
+---
+title: "Capstone 2: Custom Image Classifier with CNNs, Augmentation & Grad-CAM"
+module: "capstones"
+moduleOrder: 10
+order: 3
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 30
+prerequisites: ["computer-vision/03-data-augmentation-transfer", "capstones/01-capstone-playbook"]
+objectives:
+  - "Build and train an end-to-end convolutional image classifier in PyTorch"
+  - "Separate train augmentations from clean deterministic validation transforms"
+  - "Compute spatial Grad-CAM class activation heatmaps to verify the CNN focuses on real objects"
+summary: "Train a compact multi-class CNN from end to end, evaluate per-class confusion, and audit spatial attention via Grad-CAM."
+tags: ["capstone", "cnn", "image-classifier", "grad-cam", "pytorch"]
+vizTypes: ["convolution"]
+colabNotebook: "notebooks/capstones/image-classifier.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Project Brief: Trustworthy Visual Classification
+
+Accuracy alone doesn't prove a vision model learned the right visual cues—a famous husky-vs-wolf classifier actually cheated by detecting snow in the background! In this capstone, you train a compact CNN and compute **Grad-CAM** spatial attribution to verify which pixels drive the prediction.
+
+## Interactive Spatial Feature Check
+
+<Viz type="convolution" />
+
+## Build It: Synthetic Shapes Dataset, CNN Training Loop & Grad-CAM Math
+
+<CodeRunner
+  title="Capstone 2: End-to-End PyTorch CNN Classifier & Grad-CAM Weights"
+  code={`import numpy as np
+
+# Generate clean 8x8 synthetic horizontal vs vertical bar dataset
+def make_bars(n=40, seed=0):
+    rng = np.random.default_rng(seed)
+    X, y = [], []
+    for i in range(n):
+        img = rng.normal(0, 0.1, (8, 8))
+        if i % 2 == 0:
+            img[3:5, 1:7] += 1.0  # horizontal bar -> class 0
+            y.append(0)
+        else:
+            img[1:7, 3:5] += 1.0  # vertical bar -> class 1
+            y.append(1)
+        X.append(img)
+    return np.array(X), np.array(y)
+
+X, y = make_bars()
+# Simple horizontal vs vertical edge kernel response discriminates perfectly
+h_score = np.mean(np.abs(np.diff(X, axis=1)), axis=(1, 2))
+v_score = np.mean(np.abs(np.diff(X, axis=2)), axis=(1, 2))
+preds = (v_score > h_score).astype(int)
+print("Edge-energy baseline accuracy:", float(np.mean(preds == y)))`}
+  libraryCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+torch.manual_seed(7)
+class MiniCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(1, 8, kernel_size=3, padding=1)
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(8, 2)
+
+    def forward(self, x):
+        feats = F.relu(self.conv(x))
+        pooled = self.pool(feats).flatten(1)
+        return self.fc(pooled), feats
+
+# Train on synthetic horizontal (0) vs vertical (1) 8x8 bars
+X = torch.zeros(24, 1, 8, 8)
+y = torch.zeros(24, dtype=torch.long)
+for i in range(24):
+    if i % 2 == 0:
+        X[i, 0, 3:5, 1:7] = 1.0; y[i] = 0
+    else:
+        X[i, 0, 1:7, 3:5] = 1.0; y[i] = 1
+
+net = MiniCNN()
+opt = torch.optim.AdamW(net.parameters(), lr=0.04)
+for _ in range(40):
+    logits, _ = net(X)
+    loss = F.cross_entropy(logits, y)
+    opt.zero_grad(); loss.backward(); opt.step()
+
+net.eval()
+with torch.inference_mode():
+    logits, _ = net(X)
+    acc = (logits.argmax(dim=1) == y).float().mean().item()
+print(f"Trained MiniCNN accuracy: {acc:.1%} | Final loss: {loss.item():.4f}")`}
+  colabCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# Computing Grad-CAM heatmap over final conv layer feature maps A: (C, H, W)
+A = torch.randn(8, 7, 7, requires_grad=True)
+class_score = (A.mean(dim=(1, 2)) * torch.randn(8)).sum()
+class_score.backward()
+
+weights = A.grad.mean(dim=(1, 2))  # Global average pooled gradients alpha_k
+cam = F.relu((weights[:, None, None] * A.detach()).sum(dim=0))
+cam_norm = cam / (cam.max() + 1e-8)
+print("Grad-CAM heatmap shape:", tuple(cam_norm.shape), "Max:", round(cam_norm.max().item(), 2))`}
+  exerciseStarter={`import numpy as np
+
+def compute_gradcam_map(feature_maps, gradients):
+    # feature_maps & gradients shape: (C, H, W)
+    # TODO: alpha = mean(gradients over H,W), weighted sum over C, then ReLU (maximum with 0)
+    return np.zeros(feature_maps.shape[1:])`}
+  exerciseTests={`A = np.ones((2, 3, 3))
+A[0] = 2.0
+G = np.array([np.full((3, 3), 1.0), np.full((3, 3), -3.0)])
+# weights = [1.0, -3.0] -> sum = 1.0*2 + (-3.0)*1 = -1.0 -> ReLU -> 0.0
+assert np.allclose(compute_gradcam_map(A, G), 0.0)
+G2 = np.array([np.full((3, 3), 2.0), np.full((3, 3), 1.0)])
+assert np.allclose(compute_gradcam_map(A, G2), 5.0)`}
+  exerciseSolution={`import numpy as np
+
+def compute_gradcam_map(feature_maps, gradients):
+    weights = np.mean(gradients, axis=(1, 2))
+    cam = np.sum(weights[:, None, None] * feature_maps, axis=0)
+    return np.maximum(0.0, cam)`}
+  hint1="Average gradients across spatial axes (1, 2) to obtain per-channel importance weights."
+  hint2="Multiply weights[:, None, None] * feature_maps, sum along axis=0, and apply np.maximum(0.0, cam)."
+/>
+
+<Quiz
+  lessonId="capstones/03-capstone-image-classifier"
+  questions={[
+    {
+      id: "cap2-q1",
+      type: "mcq",
+      prompt: "Why does Grad-CAM apply ReLU after taking the weighted sum of feature maps?",
+      options: [
+        "To flip image orientation",
+        "To keep only pixels that positively boost the target class score while discarding negative evidence",
+        "To normalize pixels between -1 and 1",
+        "To eliminate batch normalization"
+      ],
+      answer: 1,
+      explanation: "ReLU highlights spatial regions supporting the class of interest."
+    },
+    {
+      id: "cap2-q2",
+      type: "fill-blank",
+      prompt: "Converting variable spatial feature maps (B, C, H, W) into fixed (B, C) vectors regardless of input image resolution uses Global ______ Pooling.",
+      answer: "Average",
+      acceptableAnswers: ["average", "avg"],
+      explanation: "Adaptive/Global Average Pooling averages each channel across H and W cleanly."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Use AdaptiveAvgPool2d so CNNs accept flexible input resolutions cleanly.",
+    "Always inspect Grad-CAM heatmaps to confirm predictions focus on objects rather than background shortcuts.",
+    "Separate random training augmentations from deterministic validation preprocessing."
+  ]}
+/>
+

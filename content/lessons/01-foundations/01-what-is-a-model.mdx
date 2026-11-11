@@ -1,0 +1,158 @@
+---
+title: "What Is a Model? Functions, Data, and Learning from Experience"
+module: "foundations"
+moduleOrder: 1
+order: 1
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 12
+prerequisites: []
+objectives:
+  - "Define a machine learning model as a parameterized function f(x; theta)"
+  - "Distinguish features, targets, parameters, and hyperparameters"
+  - "Trace how a training loop reduces error over data"
+  - "Fit and evaluate a tiny prediction rule in Python"
+summary: "Every machine learning system—from linear regression to GPT—is a parameterized function whose weights are tuned to minimize error on examples."
+tags: ["model", "parameters", "supervised-learning", "training-loop"]
+vizTypes: ["gradient-descent"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Guessing Rules vs. Learning Rules
+
+In traditional software engineering, you write explicit rules by hand: `if price > 500: discount = 0.10`. That works well when the rule is simple and fixed.
+
+In machine learning, we flip the direction. We provide **examples** $(x, y)$—inputs paired with observed outcomes—and ask an algorithm to discover the rule automatically. A <GlossaryTerm term="Model">model</GlossaryTerm> is simply a flexible mathematical recipe $f(x; \theta)$ with tunable knobs $\theta$ (parameters).
+
+<Callout type="note" title="Parameters vs. Hyperparameters">
+  **Parameters** ($\theta$, like weights $w$ and bias $b$) are learned automatically from data during training. **Hyperparameters** (like learning rate or tree depth) are choices *you* configure before training starts.
+</Callout>
+
+## See It: Tuning Parameters Against Data
+
+Before writing equations, explore how parameters move on a loss surface below. Every step nudges parameters downhill toward lower prediction error.
+
+<Viz type="gradient-descent" preset="bowl" />
+
+## The Three Ingredients of Supervised Learning
+
+1. **Data $(X, y)$:** Input features $X$ (e.g., apartment area, bedrooms) and ground-truth targets $y$ (price).
+2. **A <GlossaryTerm term="Loss Function">Loss Function</GlossaryTerm> $L(\theta)$:** A single number scoring how wrong our current guesses $\hat{y} = f(x; \theta)$ are.
+3. **An Optimizer:** A procedure that adjusts $\theta$ to shrink $L(\theta)$ without memorizing accidental noise.
+
+<Callout type="math-deep-dive" title="Mathematical Formulation of Empirical Risk Minimization">
+  Given a dataset of $N$ examples $\{(x_i, y_i)\}_{i=1}^N$, training searches for parameters $\theta^*$ that minimize average error:
+
+  <Math tex="\theta^* = \arg\min_\theta \frac{1}{N} \sum_{i=1}^{N} \ell\big(f(x_i; \theta),\, y_i\big)" display />
+
+  For continuous targets, squared error $\ell(\hat{y}, y) = (\hat{y} - y)^2$ penalizes large misses heavily.
+</Callout>
+
+## Code: Build, Fit, and Verify Your First Model
+
+Switch between the **From Scratch (NumPy)** implementation, the **scikit-learn** equivalent, and the **Exercise** tab to test yourself.
+
+<CodeRunner
+  title="Your First Predictive Model: Home Area to Price"
+  code={`import numpy as np
+
+# Input feature: house size in 1000 sq ft; target: price in $100k
+area = np.array([0.85, 1.10, 1.40, 1.80, 2.20, 2.60])
+price = np.array([2.15, 2.68, 3.52, 4.25, 4.95, 6.42])
+
+# Model: y_hat = w * x + b
+w, b = 0.0, 0.0
+lr = 0.08
+
+for epoch in range(250):
+    pred = w * area + b
+    error = pred - price
+    loss = np.mean(error ** 2)
+    # Gradients of mean squared error
+    dw = (2.0 / len(area)) * np.dot(error, area)
+    db = (2.0 / len(area)) * np.sum(error)
+    w -= lr * dw
+    b -= lr * db
+
+print(f"Learned parameters: w={w:.3f}, b={b:.3f}, MSE={loss:.4f}")
+print(f"Predicted price for 2,000 sq ft: \${(w * 2.0 + b) * 100:.1f}k")`}
+  libraryCode={`import pandas as pd
+from sklearn.linear_model import LinearRegression
+
+df = pd.read_csv("/datasets/housing_mini.csv")
+X = df[["area_sqft", "bedrooms", "age_years"]]
+y = df["price_k"]
+
+model = LinearRegression().fit(X, y)
+print("Coefficients:", dict(zip(X.columns, model.coef_.round(3))))
+print("Intercept:", round(float(model.intercept_), 2))
+print("R^2 score:", round(model.score(X, y), 4))`}
+  exerciseStarter={`import numpy as np
+
+def predict_linear(x, w, b):
+    # TODO: return w * x + b using NumPy
+    return None
+
+def mean_squared_error(y_true, y_pred):
+    # TODO: compute mean((y_true - y_pred) ** 2)
+    return None`}
+  exerciseTests={`x_test = np.array([1.0, 2.0, 3.0])
+preds = predict_linear(x_test, 2.0, 0.5)
+assert np.allclose(preds, np.array([2.5, 4.5, 6.5])), "Check predict_linear formula"
+mse = mean_squared_error(np.array([2.0, 4.0]), np.array([2.5, 3.5]))
+assert abs(mse - 0.25) < 1e-6, f"Expected MSE 0.25, got {mse}"`}
+  exerciseSolution={`import numpy as np
+
+def predict_linear(x, w, b):
+    return w * np.asarray(x) + b
+
+def mean_squared_error(y_true, y_pred):
+    diff = np.asarray(y_true) - np.asarray(y_pred)
+    return float(np.mean(diff ** 2))`}
+  hint1="Convert inputs with np.asarray(...) if needed so element-wise arithmetic works cleanly."
+  hint2="Mean squared error is np.mean((y_true - y_pred) ** 2)."
+/>
+
+<Quiz
+  lessonId="foundations/01-what-is-a-model"
+  questions={[
+    {
+      id: "q1",
+      type: "mcq",
+      prompt: "Which quantity is updated automatically by gradient-based training rather than chosen manually beforehand?",
+      options: ["Learning rate", "Model weights and biases", "Train/test split ratio", "Polynomial degree"],
+      answer: 1,
+      explanation: "Weights and biases are learned parameters tuned by the optimizer; learning rate, split ratio, and degree are hyperparameters."
+    },
+    {
+      id: "q2",
+      type: "fill-blank",
+      prompt: "The scalar function that measures how wrong a model's predictions are relative to ground truth is called the ______ function.",
+      answer: "loss",
+      acceptableAnswers: ["loss", "cost", "objective"],
+      explanation: "A loss (or cost/objective) function scores prediction error so optimization can minimize it."
+    },
+    {
+      id: "q3",
+      type: "code-completion",
+      prompt: "Complete the NumPy prediction expression for a linear model with weight matrix W, input x, and bias b:",
+      codeSnippet: "y_hat = _____",
+      answer: "x @ W + b",
+      acceptableAnswers: ["x @ W + b", "W @ x + b", "np.dot(x, W) + b", "np.matmul(x, W) + b"],
+      explanation: "Matrix multiplication (@ or np.dot) followed by bias addition forms the core affine layer across ML and deep learning."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "A model is a parameterized function f(x; theta) mapping inputs to predictions.",
+    "Training adjusts parameters theta to minimize a differentiable loss function over examples.",
+    "Hyperparameters govern the learning setup; parameters encode what the model learned from data."
+  ]}
+/>
+

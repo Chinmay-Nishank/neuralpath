@@ -1,0 +1,149 @@
+---
+title: "Diffusion Models & Modern Flow Matching (DDPM, Rectified Flows & DiT)"
+module: "generative-ai"
+moduleOrder: 6
+order: 3
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 22
+prerequisites: ["generative-ai/01-autoencoders-vae", "nlp-transformers/05-transformer-architecture"]
+objectives:
+  - "Contrast DDPM curved variance-preserving noise schedules with straight-line Flow Matching ODE paths"
+  - "Understand why Diffusion Transformers (DiT / MM-DiT) replaced U-Nets in frontier generators"
+  - "Implement forward linear flow interpolation and velocity matching loss in PyTorch"
+summary: "Learn how modern image and video generators evolved from curved DDPM diffusion to Rectified Flow Matching and Diffusion Transformers (DiT)."
+tags: ["diffusion", "flow-matching", "rectified-flow", "dit", "ddpm"]
+vizTypes: ["diffusion"]
+colabNotebook: "notebooks/generative-ai/flow-matching-dit.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: From Curved Denoising to Straight-Line Flows
+
+Classical **DDPM** diffusion corrupts real data $x_0$ with Gaussian noise across many steps and trains a model to denoise step-by-step along curved stochastic trajectories—typically needing 20–50 steps at inference.
+
+Modern systems (Stable Diffusion 3, FLUX, and frontier video generators) use **Flow Matching / Rectified Flows**: define a straight linear path from pure noise $x_1 \sim \mathcal{N}(0, I)$ to clean data $x_0$:
+
+<Math tex="x_t = (1 - t) x_0 + t \, x_1, \qquad t \in [0, 1]" display />
+
+Because the interpolation path is straight, a **Diffusion Transformer (DiT)** predicting velocity $v_\theta(x_t, t) \approx x_1 - x_0$ integrates smoothly from noise back to sharp images in just **4–20 Euler steps**!
+
+## Interactive Lab: DDPM Cosine Schedule vs. Straight Flow Matching
+
+Switch between **Flow Matching** and **DDPM Cosine** below and click **Play** or scrub timestep $t$ to inspect straight linear particle trajectories vs. non-linear cosine scheduling.
+
+<Viz type="diffusion" />
+
+<Callout type="note" title="Why DiT Replaced U-Nets">
+  Just as Transformers scaled NLP and vision, **Diffusion Transformers (DiT)** patchify VAE latents and feed timestep $t$ and prompt embeddings via Adaptive LayerNorm (`adaLN-Zero`), unlocking predictable compute scaling laws.
+</Callout>
+
+<Callout type="math-deep-dive" title="Conditional Flow Matching Training Objective">
+  Sample clean data $x_0$, Gaussian noise $x_1 \sim \mathcal{N}(0, I)$, and timestep $t \sim \mathcal{U}(0, 1)$. The exact target velocity along the straight path is $u_t = x_1 - x_0$:
+
+  <Math tex="\mathcal{L}_{\text{CFM}}(\theta) = \mathbb{E}_{t, x_0, x_1} \Big[\big\| v_\theta((1 - t)x_0 + t x_1,\, t) - (x_1 - x_0) \big\|_2^2\Big]" display />
+</Callout>
+
+## Runnable Code: Flow Matching Training Step & Euler ODE Sampler
+
+<CodeRunner
+  title="Rectified Flow Matching Loss & Euler Sampling in NumPy / PyTorch"
+  code={`import numpy as np
+
+# Forward linear interpolation and backward Euler integration check
+x0 = np.array([2.0, -1.0])   # Clean data point
+x1 = np.array([-1.5, 2.5])   # Gaussian noise sample
+true_velocity = x1 - x0
+
+# Integrate backward from t=1 (noise) to t=0 (data) in 10 Euler steps
+x_cur = x1.copy()
+dt = 1.0 / 10
+for _ in range(10):
+    # Perfect velocity oracle moves straight toward x0
+    x_cur = x_cur - dt * true_velocity
+
+print("Target x0:", x0)
+print("Recovered x0 after 10 Euler steps:", np.round(x_cur, 6))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+class TinyVelocityNet(nn.Module):
+    def __init__(self, d=2):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(d + 1, 32), nn.SiLU(), nn.Linear(32, d))
+
+    def forward(self, x_t, t):
+        return self.net(torch.cat([x_t, t], dim=-1))
+
+model = TinyVelocityNet()
+opt = torch.optim.AdamW(model.parameters(), lr=1e-2)
+x0 = torch.tensor([[1.0, 1.0], [-1.0, -1.0]] * 8)
+
+for _ in range(30):
+    t = torch.rand(len(x0), 1)
+    x1 = torch.randn_like(x0)
+    x_t = (1.0 - t) * x0 + t * x1
+    v_pred = model(x_t, t)
+    loss = ((v_pred - (x1 - x0)) ** 2).mean()
+    opt.zero_grad(); loss.backward(); opt.step()
+
+print("Flow matching training step loss:", round(loss.item(), 4))`}
+  exerciseStarter={`import numpy as np
+
+def flow_interpolate(x0, x1, t):
+    # TODO: return (x_t, target_velocity) where x_t = (1 - t)*x0 + t*x1 and v = x1 - x0
+    return x0, x1`}
+  exerciseTests={`x0 = np.array([4.0, 0.0])
+x1 = np.array([0.0, 8.0])
+xt, v = flow_interpolate(x0, x1, 0.25)
+assert np.allclose(xt, [3.0, 2.0])
+assert np.allclose(v, [-4.0, 8.0])`}
+  exerciseSolution={`import numpy as np
+
+def flow_interpolate(x0, x1, t):
+    x0 = np.asarray(x0, dtype=float)
+    x1 = np.asarray(x1, dtype=float)
+    return (1.0 - t) * x0 + t * x1, x1 - x0`}
+  hint1="Linear interpolation between x0 and x1 at fraction t is (1 - t)*x0 + t*x1."
+  hint2="Constant target velocity from x0 to x1 is x1 - x0."
+/>
+
+<Quiz
+  lessonId="generative-ai/03-diffusion-flow-matching"
+  questions={[
+    {
+      id: "diff-q1",
+      type: "mcq",
+      prompt: "Why do Rectified Flow Matching models require far fewer sampling steps than classic DDPMs?",
+      options: [
+        "They skip the VAE decoder",
+        "They train straight linear probability paths between noise and data, reducing ODE integration discretization error",
+        "They generate pixels sequentially left-to-right",
+        "They use 1-bit weights"
+      ],
+      answer: 1,
+      explanation: "Straight trajectories can be accurately integrated with large Euler step sizes (4-20 NFE) without quality loss."
+    },
+    {
+      id: "diff-q2",
+      type: "fill-blank",
+      prompt: "Modern frontier image and video generators replace the U-Net denoising backbone with patchified ______ Transformers (DiT).",
+      answer: "Diffusion",
+      acceptableAnswers: ["diffusion"],
+      explanation: "Diffusion Transformers (DiT) apply Transformer scaling laws directly to latent image/video patches."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Flow Matching learns velocity fields along straight paths between Gaussian noise and data.",
+    "Diffusion Transformers (DiT) scale sample quality predictably via Transformer compute.",
+    "Classifier-Free Guidance (CFG) steers conditional generation by contrasting conditional and unconditional predictions."
+  ]}
+/>
+

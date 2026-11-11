@@ -1,0 +1,100 @@
+- id: foundations
+  order: 1
+  title: Foundations
+  shortTitle: Foundations
+  description: Build intuition for models, vectorized Python, NumPy, Pandas, linear algebra, multivariable calculus, and probability.
+  level: beginner
+  estimatedHours: 4
+  badgeTitle: Mathematical Thinker
+  colorVar: --chart-1
+
+- id: classical-ml
+  order: 2
+  title: Classical Machine Learning
+  shortTitle: Classical ML
+  description: Master regression, gradient descent, classification, regularization, tree ensembles, SVMs, clustering, and evaluation metrics.
+  level: beginner
+  estimatedHours: 6
+  badgeTitle: Classical Practitioner
+  colorVar: --chart-3
+
+- id: deep-learning
+  order: 3
+  title: Deep Learning Core
+  shortTitle: Deep Learning
+  description: Understand perceptrons, MLPs, activations, loss landscapes, reverse-mode backpropagation, AdamW, normalization, and regularization.
+  level: practitioner
+  estimatedHours: 5
+  badgeTitle: Neural Architect
+  colorVar: --chart-2
+
+- id: computer-vision
+  order: 4
+  title: Computer Vision
+  shortTitle: Computer Vision
+  description: Explore convolutions, residual networks, augmentation, transfer learning, Vision Transformers (ViT), object detection, and segmentation.
+  level: practitioner
+  estimatedHours: 4
+  badgeTitle: Visual Perception Engineer
+  colorVar: --chart-4
+
+- id: nlp-transformers
+  order: 5
+  title: Sequence Models & Transformers
+  shortTitle: NLP & Transformers
+  description: Go from BPE tokenization and embeddings through RNNs/LSTMs to self-attention, RoPE, GQA, BERT, and autoregressive GPT decoders.
+  level: practitioner
+  estimatedHours: 6
+  badgeTitle: Transformer Builder
+  colorVar: --chart-5
+
+- id: generative-ai
+  order: 6
+  title: Generative AI & Modern LLMs
+  shortTitle: Generative AI
+  description: Learn VAEs, GANs, diffusion & flow matching (DiT), scaling laws, RAG, LoRA/QLoRA fine-tuning, MCP agents, and systematic LLM evaluation.
+  level: researcher
+  estimatedHours: 7
+  badgeTitle: Generative Systems Engineer
+  colorVar: --chart-6
+
+- id: reinforcement-learning
+  order: 7
+  title: Reinforcement Learning
+  shortTitle: Reinforcement Learning
+  description: Study MDPs, Bellman equations, Q-learning, policy gradients, PPO, bandits, and post-training alignment (RLHF, DPO, GRPO).
+  level: researcher
+  estimatedHours: 5
+  badgeTitle: Policy Optimizer
+  colorVar: --chart-1
+
+- id: mlops
+  order: 8
+  title: MLOps & Production Systems
+  shortTitle: MLOps
+  description: Ship reliable models with experiment tracking, ONNX/vLLM serving, quantization, observability, drift detection, and CI/CD eval gates.
+  level: practitioner
+  estimatedHours: 4
+  badgeTitle: Production ML Engineer
+  colorVar: --chart-3
+
+- id: ai-safety
+  order: 9
+  title: AI Safety, Ethics & Interpretability
+  shortTitle: Safety & Interpretability
+  description: Audit fairness, compute SHAP/LIME attributions, inspect Sparse Autoencoders (SAEs), defend against prompt injection, and reason about alignment.
+  level: researcher
+  estimatedHours: 4
+  badgeTitle: Responsible AI Steward
+  colorVar: --chart-4
+
+- id: capstones
+  order: 10
+  title: Capstone Projects
+  shortTitle: Capstones
+  description: Apply everything end-to-end across five guided engineering projects from spam detection and CNNs to mini-GPT, RAG, and RL agents.
+  level: practitioner
+  estimatedHours: 8
+  badgeTitle: NeuralPath Graduate
+  colorVar: --chart-2
+

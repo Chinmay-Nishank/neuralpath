@@ -1,0 +1,137 @@
+---
+title: "Value-Based RL: Temporal Difference, Q-Learning & Deep Q-Networks (DQN)"
+module: "reinforcement-learning"
+moduleOrder: 7
+order: 2
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 19
+prerequisites: ["reinforcement-learning/01-mdps-bellman", "deep-learning/04-backpropagation"]
+objectives:
+  - "Understand model-free Temporal Difference (TD) bootstrapping without knowing environment transitions P"
+  - "Implement tabular Q-learning with epsilon-greedy exploration"
+  - "Explain why Deep Q-Networks require Experience Replay and Target Networks to stabilize training"
+summary: "Learn optimal control directly from environment interaction using Q-learning, TD targets, replay buffers, and DQN target networks."
+tags: ["q-learning", "dqn", "temporal-difference", "replay-buffer", "rl"]
+vizTypes: ["rl-gridworld"]
+colabNotebook: "notebooks/reinforcement-learning/dqn.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Learning Without a Rulebook
+
+In real games or robotics, you rarely possess the transition probability table $P(s' \mid s, a)$ required by Bellman Value Iteration. **<GlossaryTerm term="Q-Learning">Q-Learning</GlossaryTerm>** learns action-values $Q(s, a)$ purely from trial-and-error experience tuples $(s, a, r, s')$:
+
+<Math tex="Q(s, a) \leftarrow Q(s, a) + \alpha \Big[\underbrace{r + \gamma \max_{a'} Q(s', a')}_{\text{TD Target}} - Q(s, a)\Big]" display />
+
+When state spaces grow too huge for tables (Atari pixels, continuous sensors), **DQN** replaces the table with a neural network $Q_\theta(s, a)$. Two fixes prevent catastrophic divergence: **Experience Replay** (shuffling past transitions to break temporal correlation) and a frozen **Target Network** $Q_{\theta^-}$ updated slowly so the TD target stops chasing itself!
+
+## Interactive Lab: Watch Q-Values & Policy Arrows Emerge Live
+
+<Viz type="rl-gridworld" />
+
+<Callout type="math-deep-dive" title="On-Policy SARSA vs. Off-Policy Q-Learning">
+  - **Q-Learning** uses $\max_{a'} Q(s', a')$ regardless of what exploratory random action the agent takes next (*off-policy*).
+  - **SARSA** updates using the action $a'$ actually sampled by the exploratory policy (*on-policy*), learning safer paths further away from cliff hazards!
+</Callout>
+
+## Runnable Code: Tabular Q-Learning & PyTorch DQN Target Step
+
+<CodeRunner
+  title="Tabular Q-Learning & PyTorch DQN TD-Loss Update"
+  code={`import numpy as np
+
+# 5-state corridor: state 0..3 -> right moves +1, left moves -1; state 4 is Goal (+10)
+Q = np.zeros((5, 2))  # actions: 0=left, 1=right
+alpha, gamma, eps = 0.2, 0.9, 0.2
+rng = np.random.default_rng(7)
+
+for _ in range(150):
+    s = 0
+    for _ in range(20):
+        a = int(rng.integers(2)) if rng.random() < eps else int(np.argmax(Q[s]))
+        ns = max(0, s - 1) if a == 0 else min(4, s + 1)
+        r = 10.0 if ns == 4 else -0.1
+        done = (ns == 4)
+        td_target = r + (0.0 if done else gamma * np.max(Q[ns]))
+        Q[s, a] += alpha * (td_target - Q[s, a])
+        s = ns
+        if done:
+            break
+
+print("Learned Q-table (states 0..3):\n", np.round(Q[:4], 2))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+q_net = nn.Sequential(nn.Linear(4, 32), nn.ReLU(), nn.Linear(32, 2))
+target_net = nn.Sequential(nn.Linear(4, 32), nn.ReLU(), nn.Linear(32, 2))
+target_net.load_state_dict(q_net.state_dict())
+
+states = torch.randn(8, 4)
+actions = torch.tensor([0, 1, 1, 0, 1, 0, 0, 1])
+rewards = torch.tensor([0.0, 1.0, 0.0, -1.0, 1.0, 0.0, 0.0, 1.0])
+next_states = torch.randn(8, 4)
+dones = torch.tensor([0., 1., 0., 1., 0., 0., 0., 1.])
+
+q_vals = q_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+with torch.no_grad():
+    next_max = target_net(next_states).max(dim=1).values
+    targets = rewards + 0.99 * (1.0 - dones) * next_max
+
+loss = nn.SmoothL1Loss()(q_vals, targets)
+print("DQN Huber TD loss:", round(loss.item(), 4))`}
+  exerciseStarter={`def q_learning_update(q_sa, reward, next_q_values, alpha=0.1, gamma=0.9, done=False):
+    # TODO: return updated scalar Q(s, a) value
+    return q_sa`}
+  exerciseTests={`val = q_learning_update(2.0, 1.0, [4.0, 6.0], alpha=0.5, gamma=0.9, done=False)
+# target = 1.0 + 0.9 * 6.0 = 6.4 -> 2.0 + 0.5*(6.4 - 2.0) = 4.2
+assert abs(val - 4.2) < 1e-7
+val_done = q_learning_update(2.0, 10.0, [100.0, 100.0], alpha=0.5, gamma=0.9, done=True)
+assert abs(val_done - 6.0) < 1e-7`}
+  exerciseSolution={`def q_learning_update(q_sa, reward, next_q_values, alpha=0.1, gamma=0.9, done=False):
+    next_max = 0.0 if done else max(next_q_values)
+    td_target = reward + gamma * next_max
+    return q_sa + alpha * (td_target - q_sa)`}
+  hint1="If done is True, the future value term gamma * max(next_q_values) is 0.0."
+  hint2="Apply q_sa + alpha * (td_target - q_sa)."
+/>
+
+<Quiz
+  lessonId="reinforcement-learning/02-q-learning-dqn"
+  questions={[
+    {
+      id: "dqn-q1",
+      type: "mcq",
+      prompt: "Why does Deep Q-Learning sample mini-batches randomly from an Experience Replay buffer?",
+      options: [
+        "To eliminate reward functions",
+        "To break consecutive state correlations and stabilize stochastic gradient updates",
+        "To replace the discount factor",
+        "To disable exploration"
+      ],
+      answer: 1,
+      explanation: "Sequential trajectory frames are heavily correlated; replay shuffling restores near-i.i.d. batches."
+    },
+    {
+      id: "dqn-q2",
+      type: "fill-blank",
+      prompt: "When a transition reaches a terminal state (done=True), the target reduces strictly to ______ without bootstrapping Q(s', a').",
+      answer: "reward",
+      acceptableAnswers: ["reward", "r"],
+      explanation: "No future rewards occur past a terminal state, so future value is zero."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Q-learning learns optimal action values off-policy via one-step TD bootstrapping.",
+    "Always multiply next_max by (1 - done) so terminal transitions don't leak invalid bootstrap values.",
+    "DQN pairs experience replay with a lagged target network to stabilize neural function approximation."
+  ]}
+/>
+

@@ -1,0 +1,126 @@
+---
+title: "Policy Gradients: REINFORCE, Baselines & Actor-Critic (A2C)"
+module: "reinforcement-learning"
+moduleOrder: 7
+order: 3
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 19
+prerequisites: ["reinforcement-learning/02-q-learning-dqn"]
+objectives:
+  - "Optimize parameterized stochastic policies pi_theta(a|s) directly via the Log-Derivative Trick"
+  - "Subtract a state-value baseline V(s) to slash gradient variance using Advantage A_t = G_t - V(s_t)"
+  - "Combine Actor (policy) and Critic (value) networks into Advantage Actor-Critic (A2C)"
+summary: "Move beyond discrete Q-tables to optimize continuous or high-dimensional policies directly with REINFORCE and Actor-Critic."
+tags: ["policy-gradients", "reinforce", "actor-critic", "advantage", "baseline"]
+vizTypes: ["rl-gridworld"]
+colabNotebook: "notebooks/reinforcement-learning/policy-gradients.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Reinforce Lucky Trajectories, Suppress Bad Ones
+
+Value-based Q-learning struggles with continuous robotics control (`steer = +0.34 radians`) because computing $\arg\max_a Q(s, a)$ over continuous actions is intractable.
+
+**Policy Gradient** methods parameterize the policy $\pi_\theta(a \mid s)$ directly! By the **REINFORCE** log-derivative theorem, increasing the log-probability of actions weighted by how much better they scored than expected (**Advantage** $A_t = R_t - b(s_t)$) moves parameters uphill in expected return!
+
+<Viz type="rl-gridworld" />
+
+<Callout type="math-deep-dive" title="Policy Gradient Theorem with Variance-Reducing Baseline">
+  <Math tex="\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\!\left[\sum_t \nabla_\theta \log \pi_\theta(a_t \mid s_t)\,\big(G_t - V_\phi(s_t)\big)\right]" display />
+  Subtracting any state-dependent baseline $V_\phi(s_t)$ leaves the expectation **unbiased** while drastically shrinking variance—turning noisy full-episode returns into centered positive/negative advantage signals!
+</Callout>
+
+## Runnable Code: REINFORCE Loss & Advantage Actor-Critic in PyTorch
+
+<CodeRunner
+  title="Policy Gradient Loss with Baseline Subtraction"
+  code={`import numpy as np
+
+# Normalize advantages across a rollout batch for stable updates
+returns = np.array([12.0, 14.0, 10.5, 11.5])
+values = np.array([11.0, 11.2, 11.5, 11.3])
+advantages = returns - values
+adv_norm = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+print("Raw advantages       :", np.round(advantages, 2))
+print("Normalized advantages:", np.round(adv_norm, 3))`}
+  libraryCode={`import torch
+import torch.nn as nn
+from torch.distributions import Categorical
+
+policy = nn.Sequential(nn.Linear(4, 32), nn.Tanh(), nn.Linear(32, 2))
+critic = nn.Sequential(nn.Linear(4, 32), nn.Tanh(), nn.Linear(32, 1))
+
+states = torch.randn(6, 4)
+actions = torch.tensor([0, 1, 0, 1, 1, 0])
+returns = torch.tensor([2.5, 4.0, 1.2, 3.8, 4.1, 0.9])
+
+dist = Categorical(logits=policy(states))
+log_probs = dist.log_prob(actions)
+values = critic(states).squeeze(-1)
+
+advantage = (returns - values.detach())
+actor_loss = -(log_probs * advantage).mean()
+critic_loss = ((values - returns) ** 2).mean()
+entropy_bonus = dist.entropy().mean()
+total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy_bonus
+print("Actor loss:", round(actor_loss.item(), 3), "Critic loss:", round(critic_loss.item(), 3))`}
+  exerciseStarter={`import numpy as np
+
+def normalize_advantages(returns, baselines):
+    # TODO: compute adv = returns - baselines, then (adv - mean) / (std + 1e-8)
+    return returns`}
+  exerciseTests={`r = np.array([10.0, 20.0, 30.0])
+b = np.array([10.0, 10.0, 10.0])
+out = normalize_advantages(r, b)
+assert abs(out.mean()) < 1e-6
+assert abs(out.std() - 1.0) < 1e-5`}
+  exerciseSolution={`import numpy as np
+
+def normalize_advantages(returns, baselines):
+    adv = np.asarray(returns, dtype=float) - np.asarray(baselines, dtype=float)
+    return (adv - np.mean(adv)) / (np.std(adv) + 1e-8)`}
+  hint1="Subtract baselines from returns element-wise."
+  hint2="Center by mean and divide by (std + 1e-8)."
+/>
+
+<Quiz
+  lessonId="reinforcement-learning/03-policy-gradients"
+  questions={[
+    {
+      id: "pg-q1",
+      type: "mcq",
+      prompt: "Why do Actor-Critic algorithms subtract a learned state-value baseline V(s) from empirical returns?",
+      options: [
+        "To eliminate the policy network",
+        "To lower gradient variance without introducing bias, separating better-than-average from worse-than-average actions",
+        "To convert continuous actions to discrete integers",
+        "To freeze exploration completely"
+      ],
+      answer: 1,
+      explanation: "Because E[grad log pi(a|s) * b(s)] == 0, subtracting a state baseline keeps updates unbiased while slashing variance."
+    },
+    {
+      id: "pg-q2",
+      type: "fill-blank",
+      prompt: "Adding a small positive policy ______ bonus encourages exploration and prevents premature deterministic collapse.",
+      answer: "entropy",
+      acceptableAnswers: ["entropy"],
+      explanation: "Maximizing policy entropy penalizes overly peaked action probabilities early in training."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Policy gradients optimize stochastic action distributions directly, handling continuous and high-dimensional actions naturally.",
+    "Always detach advantage estimates when computing actor loss so gradients don't flow backward into the critic target.",
+    "Entropy regularization keeps exploration alive while actor-critic value baselines control variance."
+  ]}
+/>
+

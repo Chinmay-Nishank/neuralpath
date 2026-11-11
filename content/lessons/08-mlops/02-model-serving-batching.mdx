@@ -1,0 +1,112 @@
+---
+title: "Model Serving: ONNX Runtime, vLLM, Continuous Batching & Latency Budgets"
+module: "mlops"
+moduleOrder: 8
+order: 2
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["mlops/01-experiment-tracking", "nlp-transformers/07-gpt-decoders"]
+objectives:
+  - "Export models from training frameworks to portable ONNX graphs for fast CPU/edge inference"
+  - "Explain why continuous batching and PagedAttention multiply LLM serving throughput"
+  - "Balance Time-To-First-Token (TTFT), Inter-Token Latency (ITL), and P99 SLA budgets"
+summary: "Serve classical, vision, and LLM models efficiently using ONNX Runtime, continuous batching, and PagedAttention memory management."
+tags: ["serving", "onnx", "vllm", "paged-attention", "continuous-batching", "latency"]
+vizTypes: ["quantization"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Training Optimizes Throughput; Serving Battles Latency & Memory
+
+During training, you batch 1,000 fixed-length sequences together offline. In production serving, requests arrive unpredictably at random times with lengths ranging from 20 tokens to 16,000 tokens!
+
+Two serving patterns unlock production performance:
+1. **ONNX Runtime (Classical & Vision):** strips Python framework overhead into fused C++/CUDA kernels—even running right inside browsers via WebAssembly/WebGPU.
+2. **Continuous Batching & PagedAttention (vLLM / SGLang for LLMs):** instead of waiting for the longest sequence in a static batch to finish before starting new requests, **continuous batching** swaps finished requests out on *every single decode step*, while **PagedAttention** stores KV caches in non-contiguous memory pages like OS virtual RAM—eliminating memory fragmentation!
+
+<Viz type="quantization" />
+
+<Callout type="math-deep-dive" title="LLM Serving Latency Decomposition">
+  - **TTFT (Time To First Token):** dominated by the compute-bound **prefill** pass over prompt tokens.
+  - **ITL / TPOT (Inter-Token Latency):** dominated by **memory bandwidth** loading weights + KV cache once per generated token. Moving a 14 GB FP16 7B model across 1 TB/s memory takes at least ~14 ms per token (~70 tok/s theoretical ceiling at batch 1).
+</Callout>
+
+## Runnable Code: Dynamic Batching Queue Simulator & PyTorch Inference Timing
+
+<CodeRunner
+  title="Static vs. Continuous Batching Utilization & PyTorch Inference Mode"
+  code={`# Compare GPU utilization under static batching vs continuous iteration-level batching
+request_lengths = [10, 80, 15, 25]  # decode steps per request
+
+# Static batch waits for max(80) across all 4 slots = 4 * 80 = 320 slot-steps
+static_slot_steps = len(request_lengths) * max(request_lengths)
+active_work = sum(request_lengths)
+print(f"Static batch utilization   : {active_work / static_slot_steps:.1%}")
+
+# Continuous batching immediately schedules next request as soon as slot frees
+print(f"Continuous batch work ratio: {active_work / active_work:.1%} (zero idle padding!)")`}
+  libraryCode={`import time, torch
+import torch.nn as nn
+
+model = nn.Sequential(nn.Linear(64, 128), nn.GELU(), nn.Linear(128, 10)).eval()
+x = torch.randn(32, 64)
+
+# inference_mode disables autograd & version tracking for lower overhead than no_grad
+t0 = time.perf_counter()
+with torch.inference_mode():
+    for _ in range(100):
+        _ = model(x)
+dt_ms = (time.perf_counter() - t0) * 1000.0
+print(f"100 batched forward passes in inference_mode: {dt_ms:.2f} ms")`}
+  exerciseStarter={`def kv_cache_bytes(num_layers, n_kv_heads, head_dim, seq_len, bytes_per_elem=2):
+    # Each layer stores both Key and Value (factor 2): 2 * layers * kv_heads * head_dim * seq_len * bytes
+    # TODO: return total KV cache bytes for one sequence
+    return 0`}
+  exerciseTests={`# 32 layers, 8 kv heads, 128 dim, 4096 tokens, FP16 (2 bytes) = 536,870,912 bytes (512 MB)
+assert kv_cache_bytes(32, 8, 128, 4096, 2) == 536870912`}
+  exerciseSolution={`def kv_cache_bytes(num_layers, n_kv_heads, head_dim, seq_len, bytes_per_elem=2):
+    return 2 * int(num_layers) * int(n_kv_heads) * int(head_dim) * int(seq_len) * int(bytes_per_elem)`}
+  hint1="Multiply 2 (Key + Value) * num_layers * n_kv_heads * head_dim * seq_len * bytes_per_elem."
+  hint2="Check units: for 32*8*128*4096*2*2 it equals 512 MiB."
+/>
+
+<Quiz
+  lessonId="mlops/02-model-serving-batching"
+  questions={[
+    {
+      id: "srv-q1",
+      type: "mcq",
+      prompt: "What primary bottleneck limits single-stream token generation speed (Inter-Token Latency) in large decoder LLMs?",
+      options: [
+        "Tokenization regex parsing",
+        "GPU HBM memory bandwidth reading all model weights and KV cache on every single token",
+        "Python print statements",
+        "Disk SSD speed"
+      ],
+      answer: 1,
+      explanation: "Autoregressive decoding at low batch sizes is memory-bandwidth bound rather than FLOP bound."
+    },
+    {
+      id: "srv-q2",
+      type: "fill-blank",
+      prompt: "In vLLM, ______ eliminates contiguous KV-cache pre-allocation waste by dividing attention memory into fixed blocks.",
+      answer: "PagedAttention",
+      acceptableAnswers: ["pagedattention", "paged attention"],
+      explanation: "PagedAttention borrows virtual memory paging from operating systems to pack KV caches near 100% density."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Use torch.inference_mode() and ONNX Runtime / compiled graphs in production serving.",
+    "Track TTFT (prefill) and ITL (decode) separately rather than one combined average.",
+    "Continuous batching + PagedAttention + GQA unlock dramatic throughput gains on shared GPUs."
+  ]}
+/>
+

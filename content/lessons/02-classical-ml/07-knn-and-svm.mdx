@@ -1,0 +1,132 @@
+---
+title: "k-Nearest Neighbors & Support Vector Machines (Margins & Kernels)"
+module: "classical-ml"
+moduleOrder: 2
+order: 7
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 17
+prerequisites: ["classical-ml/06-feature-engineering"]
+objectives:
+  - "Contrast instance-based k-NN voting with maximum-margin Support Vector Machines"
+  - "Understand the bias-variance effect of k in k-NN and C / gamma in RBF SVMs"
+  - "Use the kernel trick conceptually to separate non-linear circles and moons"
+summary: "Master non-parametric k-NN neighbors and maximum-margin RBF Kernel SVMs with interactive decision boundary exploration."
+tags: ["knn", "svm", "kernel-trick", "rbf", "margins"]
+vizTypes: ["decision-boundary"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Neighborhood Votes vs. Widest Street Margins
+
+**k-Nearest Neighbors (k-NN)** memorizes training points and classifies a new query by majority vote among its $k$ closest neighbors. Small $k = 1$ creates jagged, high-variance islands; large $k$ smooths boundaries.
+
+**Support Vector Machines (SVMs)** instead learn the separating hyperplane with the **widest margin** between classes, anchored solely by boundary-edge **support vectors**. With an **RBF kernel**, SVMs measure similarity in infinite-dimensional space without explicitly constructing high-dimensional coordinates.
+
+## Interactive Lab: Tuning k and RBF Gamma
+
+Switch between **k-Nearest Neighbors** (vary $k$) and **RBF Kernel SVM** (vary $\gamma$) on **Concentric Circles** and **Two Moons**.
+
+<Viz type="decision-boundary" defaultModel="rbf-svm" />
+
+<Callout type="math-deep-dive" title="The RBF (Gaussian) Kernel Function">
+  The Radial Basis Function kernel measures localized proximity between two samples:
+
+  <Math tex="K(x, x') = \exp\!\left(-\gamma \|x - x'\|_2^2\right)" display />
+
+  Large $\gamma$ gives each support vector a narrow radius of influence (complex, high-variance islands); small $\gamma$ creates broad, smooth boundaries.
+</Callout>
+
+## Runnable Code: k-NN From Scratch vs. Pipeline RBF SVM
+
+<CodeRunner
+  title="Euclidean k-NN Classifier vs. Standardized RBF SVC"
+  code={`import numpy as np
+
+X_train = np.array([[0.0, 0.0], [0.2, 0.1], [2.0, 2.1], [2.2, 1.9], [0.1, 0.3]])
+y_train = np.array([0, 0, 1, 1, 0])
+
+def knn_predict(X_tr, y_tr, X_q, k=3):
+    preds = []
+    for q in X_q:
+        dists = np.linalg.norm(X_tr - q, axis=1)
+        nn_idx = np.argsort(dists)[:k]
+        votes = y_tr[nn_idx]
+        preds.append(int(np.round(np.mean(votes))))
+    return np.array(preds)
+
+queries = np.array([[0.15, 0.2], [2.1, 2.0]])
+print("k-NN predictions (k=3):", knn_predict(X_train, y_train, queries, k=3))`}
+  libraryCode={`from sklearn.datasets import make_circles
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+
+X, y = make_circles(n_samples=200, noise=0.1, factor=0.45, random_state=42)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=42)
+
+svm = make_pipeline(StandardScaler(), SVC(kernel="rbf", C=2.0, gamma="scale")).fit(X_tr, y_tr)
+knn = make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5)).fit(X_tr, y_tr)
+
+print("RBF SVM test accuracy:", round(svm.score(X_te, y_te), 3))
+print("5-NN test accuracy   :", round(knn.score(X_te, y_te), 3))`}
+  exerciseStarter={`import numpy as np
+
+def rbf_kernel(x1, x2, gamma=1.0):
+    # TODO: return exp(-gamma * sum((x1 - x2) ** 2))
+    return 0.0`}
+  exerciseTests={`a = np.array([1.0, 2.0])
+b = np.array([1.0, 2.0])
+c = np.array([3.0, 2.0])
+assert abs(rbf_kernel(a, b, 0.5) - 1.0) < 1e-7
+assert abs(rbf_kernel(a, c, 0.5) - np.exp(-2.0)) < 1e-7`}
+  exerciseSolution={`import numpy as np
+
+def rbf_kernel(x1, x2, gamma=1.0):
+    diff = np.asarray(x1, dtype=float) - np.asarray(x2, dtype=float)
+    return float(np.exp(-gamma * np.sum(diff ** 2)))`}
+  hint1="Compute squared Euclidean distance np.sum((x1 - x2) ** 2)."
+  hint2="Wrap in np.exp(-gamma * dist_sq)."
+/>
+
+<Quiz
+  lessonId="classical-ml/07-knn-and-svm"
+  questions={[
+    {
+      id: "svm-q1",
+      type: "mcq",
+      prompt: "In an RBF Kernel SVM, what happens as you increase gamma substantially?",
+      options: [
+        "The decision boundary becomes strictly linear",
+        "Each training point's influence narrows, making boundaries tighter and raising overfitting risk",
+        "All features are dropped automatically",
+        "Training time becomes constant O(1)"
+      ],
+      answer: 1,
+      explanation: "Higher gamma narrows the Gaussian kernel radius around support vectors, increasing variance."
+    },
+    {
+      id: "svm-q2",
+      type: "fill-blank",
+      prompt: "Setting k = ______ in k-NN creates the lowest bias and highest variance (memorizing every single sample).",
+      answer: "1",
+      acceptableAnswers: ["1", "one"],
+      explanation: "1-NN fits every training point with zero training error but chases individual label noise."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Always standardize features before applying k-NN or RBF SVMs.",
+    "SVMs maximize margin width around edge support vectors rather than fitting all points equally.",
+    "Large k smooths k-NN boundaries; large gamma and C tighten RBF SVM boundaries."
+  ]}
+/>
+

@@ -1,0 +1,152 @@
+---
+title: "Backpropagation: Computational Graphs & Reverse-Mode Autodiff"
+module: "deep-learning"
+moduleOrder: 3
+order: 4
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 20
+prerequisites: ["foundations/06-calculus-gradients", "deep-learning/01-perceptron-to-mlp"]
+objectives:
+  - "Explain why reverse-mode autodiff computes all parameter gradients in a single backward sweep"
+  - "Build a working scalar autograd Value engine with topological sort in pure Python"
+  - "Trace Jacobian-vector products through addition, multiplication, and non-linear ops"
+summary: "Build a miniature PyTorch-style autograd engine from scratch using topological sorting and reverse-mode chain-rule accumulation."
+tags: ["backpropagation", "autograd", "computational-graph", "reverse-mode"]
+vizTypes: ["backprop"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: One Backward Pass for Millions of Weights
+
+Suppose a neural network maps $100{,}000{,}000$ weights $\theta$ to **one scalar loss** $L(\theta) \in \mathbb{R}$. Computing finite differences or forward-mode derivatives per weight would require $100{,}000{,}000$ forward passes.
+
+<GlossaryTerm term="Backpropagation">Backpropagation</GlossaryTerm> (reverse-mode automatic differentiation) caches intermediate forward activations, walks the directed acyclic graph in reverse topological order from $L$, and accumulates $\frac{\partial L}{\partial v} = \sum \frac{\partial L}{\partial u}\frac{\partial u}{\partial v}$ for every node in **one** backward pass!
+
+## Interactive Lab: Forward Activations & Backward Gradients
+
+<Viz type="backprop" />
+
+<Callout type="math-deep-dive" title="Local Gradient Routing Rules">
+  - **Add node ($z = a + b$):** passes upstream gradient equally to both parents ($\partial L/\partial a \mathrel{+}= \partial L/\partial z$).
+  - **Multiply node ($z = a \cdot b$):** swaps parent values ($\partial L/\partial a \mathrel{+}= b \cdot \partial L/\partial z$).
+  - **Branching fan-out:** whenever a variable feeds multiple consumers, **sum (`+=`)** incoming gradients!
+</Callout>
+
+## Runnable Code: Micrograd-Style Scalar Autograd Engine
+
+<CodeRunner
+  title="Building a Reverse-Mode Autograd Engine From Scratch"
+  code={`class Value:
+    def __init__(self, data, children=(), op=""):
+        self.data = float(data)
+        self.grad = 0.0
+        self._backward = lambda: None
+        self._prev = set(children)
+
+    def __add__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data + other.data, (self, other), "+")
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+        out._backward = _backward
+        return out
+
+    def __mul__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data * other.data, (self, other), "*")
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
+        return out
+
+    def relu(self):
+        out = Value(max(0.0, self.data), (self,), "relu")
+        def _backward():
+            self.grad += (1.0 if out.data > 0 else 0.0) * out.grad
+        out._backward = _backward
+        return out
+
+    def backward(self):
+        topo, visited = [], set()
+        def build(v):
+            if v not in visited:
+                visited.add(v)
+                for c in v._prev:
+                    build(c)
+                topo.append(v)
+        build(self)
+        self.grad = 1.0
+        for node in reversed(topo):
+            node._backward()
+
+x, w, b = Value(2.0), Value(-1.5), Value(4.0)
+y = (x * w + b).relu()  # (-3 + 4) = 1.0
+loss = y * y
+loss.backward()
+print(f"loss={loss.data}, dL/dw={w.grad}, dL/dx={x.grad}, dL/db={b.grad}")`}
+  libraryCode={`import torch
+
+x = torch.tensor(2.0, requires_grad=True)
+w = torch.tensor(-1.5, requires_grad=True)
+b = torch.tensor(4.0, requires_grad=True)
+
+y = torch.relu(x * w + b)
+loss = y * y
+loss.backward()
+print(f"PyTorch: loss={loss.item()}, dL/dw={w.grad.item()}, dL/dx={x.grad.item()}, dL/db={b.grad.item()}")`}
+  exerciseStarter={`def linear_backward(x, w, grad_out):
+    # Given z = w * x + b and upstream scalar grad_out = dL/dz,
+    # TODO: return (dL/dx, dL/dw, dL/db)
+    return 0.0, 0.0, 0.0`}
+  exerciseTests={`dx, dw, db = linear_backward(3.0, -2.0, 5.0)
+assert abs(dx - (-10.0)) < 1e-7
+assert abs(dw - 15.0) < 1e-7
+assert abs(db - 5.0) < 1e-7`}
+  exerciseSolution={`def linear_backward(x, w, grad_out):
+    return w * grad_out, x * grad_out, grad_out`}
+  hint1="Derivative of w*x + b with respect to x is w; with respect to w is x; with respect to b is 1."
+  hint2="Multiply each local derivative by upstream grad_out."
+/>
+
+<Quiz
+  lessonId="deep-learning/04-backpropagation"
+  questions={[
+    {
+      id: "bp-q1",
+      type: "mcq",
+      prompt: "In an autograd engine, why must parent gradients use += instead of = during _backward()?",
+      options: [
+        "To make gradients strictly positive",
+        "Because a variable used multiple times in the forward graph must sum contributions from all paths",
+        "Because Python floats overflow otherwise",
+        "To prevent zero division"
+      ],
+      answer: 1,
+      explanation: "The multivariate chain rule sums partial paths whenever a node fans out to multiple consumers."
+    },
+    {
+      id: "bp-q2",
+      type: "fill-blank",
+      prompt: "Before executing backward closures from output to inputs, nodes must be ordered using ______ sort.",
+      answer: "topological",
+      acceptableAnswers: ["topological", "topo"],
+      explanation: "Reverse topological order guarantees every downstream consumer has accumulated its full gradient before calling its parent's _backward."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Reverse-mode autodiff computes exact gradients for all parameters in a single backward pass.",
+    "Always accumulate (+=) gradients at fan-out nodes and remember optimizer.zero_grad() between training steps.",
+    "PyTorch and JAX build dynamic or traced computation graphs using these exact chain-rule primitives."
+  ]}
+/>
+

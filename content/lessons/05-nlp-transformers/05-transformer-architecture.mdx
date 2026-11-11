@@ -1,0 +1,148 @@
+---
+title: "The Complete Modern Transformer: Multi-Head Attention, RoPE, GQA & SwiGLU"
+module: "nlp-transformers"
+moduleOrder: 5
+order: 5
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 25
+prerequisites: ["nlp-transformers/04-self-attention", "deep-learning/07-normalization-batch-layer"]
+objectives:
+  - "Assemble a complete pre-norm Transformer block with Multi-Head Attention and residual streams"
+  - "Contrast 2017 Sinusoidal positions with modern Rotary Position Embeddings (RoPE)"
+  - "Implement Grouped-Query Attention (GQA) and RMSNorm + SwiGLU used in modern open LLMs"
+summary: "Walk through every component of modern Transformers—from multi-head projections to RoPE, GQA, RMSNorm, and SwiGLU."
+tags: ["transformer", "rope", "gqa", "rmsnorm", "swiglu", "multi-head-attention"]
+vizTypes: ["attention"]
+colabNotebook: "notebooks/nlp-transformers/modern-transformer.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: What Changed Since "Attention Is All You Need" (2017)
+
+The original 2017 Transformer laid the foundation, yet modern LLMs (Llama 3/4, Qwen 2.5/3, Gemma, Mistral) upgraded four core components for faster training, longer contexts, and lower inference memory:
+
+1. **Post-Norm → Pre-RMSNorm:** Normalize inputs *before* attention and MLP sublayers, keeping the residual stream clean.
+2. **Absolute Positional Embeddings → <GlossaryTerm term="RoPE">RoPE</GlossaryTerm>:** Rotate Query and Key vectors in 2D subspaces proportionally to position $m$, so dot products depend strictly on relative offset $m - n$.
+3. **Standard Multi-Head → <GlossaryTerm term="Grouped-Query Attention">GQA</GlossaryTerm>:** Share fewer Key/Value heads across groups of Query heads, shrinking KV-cache VRAM $4\times$–$8\times$ at long context.
+4. **ReLU FFN → SwiGLU + QK-Norm:** Smooth gated FFNs and optional query/key normalization prevent attention logit spikes at massive scale.
+
+<Viz type="attention" />
+
+<Callout type="math-deep-dive" title="Rotary Position Embedding (RoPE) Complex Rotation">
+  For vector pair $(x_{2i}, x_{2i+1})$ at token index $m$ with inverse frequency $\theta_i = 10000^{-2i/d}$:
+
+  <Math tex="\begin{pmatrix} x'_{2i} \\ x'_{2i+1} \end{pmatrix} = \begin{pmatrix} \cos(m\theta_i) & -\sin(m\theta_i) \\ \sin(m\theta_i) & \cos(m\theta_i) \end{pmatrix} \begin{pmatrix} x_{2i} \\ x_{2i+1} \end{pmatrix}" display />
+
+  Because $R_m^T R_n = R_{n-m}$, inner products $q_m^T k_n$ naturally encode relative separation $n - m$.
+</Callout>
+
+## Runnable Code: RoPE Rotation & Full Modern Transformer Block
+
+<CodeRunner
+  title="Implementing RoPE in NumPy & Modern Pre-RMSNorm GQA Block in PyTorch"
+  code={`import numpy as np
+
+def apply_rope(x):
+    # x shape: (seq_len, head_dim) where head_dim is even
+    T, d = x.shape
+    half = d // 2
+    freqs = 1.0 / (10000.0 ** (np.arange(0, half) * 2.0 / d))
+    pos = np.arange(T)[:, None]
+    angles = pos * freqs[None, :]
+    cos_a, sin_a = np.cos(angles), np.sin(angles)
+    x1, x2 = x[:, :half], x[:, half:]
+    return np.concatenate([x1 * cos_a - x2 * sin_a, x1 * sin_a + x2 * cos_a], axis=-1)
+
+q = np.ones((6, 8))
+q_rot = apply_rope(q)
+# RoPE preserves exact Euclidean vector norms!
+print("Vector norms preserved:", np.allclose(np.linalg.norm(q, axis=-1), np.linalg.norm(q_rot, axis=-1)))`}
+  libraryCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ModernTransformerBlock(nn.Module):
+    def __init__(self, d_model=64, n_heads=4, n_kv_heads=2):
+        super().__init__()
+        self.n_heads = n_heads
+        self.n_kv_heads = n_kv_heads
+        self.head_dim = d_model // n_heads
+        self.norm1 = nn.RMSNorm(d_model)
+        self.wq = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
+        self.wv = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
+        self.wo = nn.Linear(d_model, d_model, bias=False)
+        self.norm2 = nn.RMSNorm(d_model)
+        self.w_gate = nn.Linear(d_model, d_model * 2, bias=False)
+        self.w_up = nn.Linear(d_model, d_model * 2, bias=False)
+        self.w_down = nn.Linear(d_model * 2, d_model, bias=False)
+
+    def forward(self, x):
+        B, T, C = x.shape
+        h = self.norm1(x)
+        q = self.wq(h).view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
+        k = self.wk(h).view(B, T, self.n_kv_heads, self.head_dim).transpose(1, 2)
+        v = self.wv(h).view(B, T, self.n_kv_heads, self.head_dim).transpose(1, 2)
+        rep = self.n_heads // self.n_kv_heads
+        k = k.repeat_interleave(rep, dim=1)
+        v = v.repeat_interleave(rep, dim=1)
+        attn = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        x = x + self.wo(attn.transpose(1, 2).contiguous().view(B, T, C))
+        m = self.norm2(x)
+        return x + self.w_down(F.silu(self.w_gate(m)) * self.w_up(m))
+
+block = ModernTransformerBlock()
+print("Modern GQA+SwiGLU block output:", tuple(block(torch.randn(2, 12, 64)).shape))`}
+  exerciseStarter={`import numpy as np
+
+def gqa_kv_memory_ratio(n_q_heads, n_kv_heads):
+    # TODO: return fraction of KV-cache memory used by GQA relative to standard MHA
+    return 1.0`}
+  exerciseTests={`assert abs(gqa_kv_memory_ratio(32, 8) - 0.25) < 1e-7
+assert abs(gqa_kv_memory_ratio(32, 1) - 1.0 / 32.0) < 1e-7`}
+  exerciseSolution={`def gqa_kv_memory_ratio(n_q_heads, n_kv_heads):
+    return float(n_kv_heads) / float(n_q_heads)`}
+  hint1="Standard MHA uses n_q_heads KV heads; GQA uses n_kv_heads."
+  hint2="The memory ratio is simply n_kv_heads / n_q_heads."
+/>
+
+<Quiz
+  lessonId="nlp-transformers/05-transformer-architecture"
+  questions={[
+    {
+      id: "tf-q1",
+      type: "mcq",
+      prompt: "What primary inference bottleneck does Grouped-Query Attention (GQA) alleviate?",
+      options: [
+        "Tokenization speed on CPU",
+        "KV-cache GPU memory footprint during long-context autoregressive decoding",
+        "BPE vocabulary size",
+        "Gradient exploding in RNNs"
+      ],
+      answer: 1,
+      explanation: "Sharing Key/Value heads across query head groups shrinks KV-cache size proportionally."
+    },
+    {
+      id: "tf-q2",
+      type: "fill-blank",
+      prompt: "Rotary Position Embedding (______) injects relative position offsets by rotating Q and K pairs in 2D planes.",
+      answer: "RoPE",
+      acceptableAnswers: ["rope"],
+      explanation: "RoPE encodes relative distances through angle differences without altering vector norms."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Modern Transformers stack Pre-RMSNorm + GQA Self-Attention + Pre-RMSNorm + SwiGLU inside a clean residual highway.",
+    "RoPE encodes relative token offsets cleanly while preserving norms and supporting context extension.",
+    "GQA trades almost zero accuracy to shrink KV-cache memory by 4x-8x."
+  ]}
+/>
+

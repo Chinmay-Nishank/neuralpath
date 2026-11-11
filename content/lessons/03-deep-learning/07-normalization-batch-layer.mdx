@@ -1,0 +1,121 @@
+---
+title: "Normalization: BatchNorm, LayerNorm & RMSNorm"
+module: "deep-learning"
+moduleOrder: 3
+order: 7
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 17
+prerequisites: ["deep-learning/06-weight-initialization"]
+objectives:
+  - "Contrast BatchNorm (across batch axis) with LayerNorm (across feature axis per sample)"
+  - "Explain why Transformers and LLMs rely on Pre-LayerNorm or RMSNorm over BatchNorm"
+  - "Implement LayerNorm and RMSNorm from scratch in NumPy and PyTorch"
+summary: "Stabilize deep activation scales across CNNs and Transformers using BatchNorm, LayerNorm, and lightweight RMSNorm."
+tags: ["normalization", "batchnorm", "layernorm", "rmsnorm", "transformers"]
+vizTypes: ["activations"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Keeping Activations Centered & Predictable
+
+As training updates early layers, downstream layers constantly receive shifting activation distributions. Normalization layers recenter and rescale activations on the fly so optimizers stay well-conditioned:
+
+- **BatchNorm (CNNs):** normalizes each feature channel *across the mini-batch*. Breaks down for tiny batch sizes (`batch=1`) or variable-length sequences.
+- **<GlossaryTerm term="Layer Normalization">LayerNorm</GlossaryTerm> (Transformers):** normalizes *each token independently* across its $d_{\text{model}}$ features—invariant to batch size and sequence length.
+- **RMSNorm (Llama, Qwen, Gemma):** drops mean subtraction entirely and divides solely by Root Mean Square magnitude, saving ~10–15% normalization compute with equal stability.
+
+<Viz type="activations" />
+
+<Callout type="math-deep-dive" title="LayerNorm vs. RMSNorm Equations">
+  Given token hidden vector $x \in \mathbb{R}^d$ and learnable scale $\gamma$:
+  <Math tex="\text{LayerNorm}(x) = \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} \odot \gamma + \beta, \qquad \text{RMSNorm}(x) = \frac{x}{\sqrt{\frac{1}{d}\sum_{i=1}^d x_i^2 + \epsilon}} \odot \gamma" display />
+  Modern architectures apply normalization **before** attention and FFN blocks (**Pre-Norm**), keeping the residual highway completely clean.
+</Callout>
+
+## Runnable Code: LayerNorm & RMSNorm in NumPy vs. PyTorch
+
+<CodeRunner
+  title="Implementing LayerNorm and RMSNorm From Scratch"
+  code={`import numpy as np
+
+def layer_norm(x, eps=1e-5):
+    mean = np.mean(x, axis=-1, keepdims=True)
+    var = np.var(x, axis=-1, keepdims=True)
+    return (x - mean) / np.sqrt(var + eps)
+
+def rms_norm(x, eps=1e-5):
+    rms = np.sqrt(np.mean(x ** 2, axis=-1, keepdims=True) + eps)
+    return x / rms
+
+X = np.array([[10.0, 20.0, 30.0, 40.0], [-2.0, 0.0, 2.0, 4.0]])
+print("LayerNorm mean & std:", np.round(layer_norm(X).mean(axis=-1), 4), np.round(layer_norm(X).std(axis=-1), 4))
+print("RMSNorm row RMS:", np.round(np.sqrt(np.mean(rms_norm(X)**2, axis=-1)), 4))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+x = torch.randn(2, 4, 16)
+ln = nn.LayerNorm(16)
+rms = nn.RMSNorm(16)
+print("PyTorch LayerNorm shape:", tuple(ln(x).shape))
+print("PyTorch RMSNorm   shape:", tuple(rms(x).shape))`}
+  exerciseStarter={`import numpy as np
+
+def rms_norm_weighted(x, gamma, eps=1e-6):
+    # TODO: compute (x / sqrt(mean(x^2) + eps)) * gamma along axis=-1
+    return x`}
+  exerciseTests={`x = np.array([[3.0, 4.0]])
+gamma = np.array([2.0, 2.0])
+out = rms_norm_weighted(x, gamma)
+# mean(x^2) = (9+16)/2 = 12.5; rms = sqrt(12.5)
+expected = (x / np.sqrt(12.5 + 1e-6)) * 2.0
+assert np.allclose(out, expected)`}
+  exerciseSolution={`import numpy as np
+
+def rms_norm_weighted(x, gamma, eps=1e-6):
+    x = np.asarray(x, dtype=float)
+    rms = np.sqrt(np.mean(x ** 2, axis=-1, keepdims=True) + eps)
+    return (x / rms) * gamma`}
+  hint1="Compute mean square along axis=-1 with keepdims=True."
+  hint2="Divide x by sqrt(ms + eps) and multiply element-wise by gamma."
+/>
+
+<Quiz
+  lessonId="deep-learning/07-normalization-batch-layer"
+  questions={[
+    {
+      id: "norm-q1",
+      type: "mcq",
+      prompt: "Why do Transformer language models use LayerNorm or RMSNorm instead of BatchNorm?",
+      options: [
+        "BatchNorm only works on 1D audio",
+        "LayerNorm/RMSNorm normalize each token independently across features, avoiding batch-size dependencies and sequence padding leaks",
+        "LayerNorm requires zero learnable parameters",
+        "RMSNorm removes the need for attention"
+      ],
+      answer: 1,
+      explanation: "Token-wise normalization behaves identically during single-token autoregressive inference and variable-length batches."
+    },
+    {
+      id: "norm-q2",
+      type: "fill-blank",
+      prompt: "______ drops mean-centering from LayerNorm and rescales solely by root-mean-square magnitude.",
+      answer: "RMSNorm",
+      acceptableAnswers: ["rmsnorm", "rms norm"],
+      explanation: "RMSNorm omits mean subtraction while preserving re-scaling invariance and speed."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "BatchNorm normalizes across the batch (great for ConvNets); LayerNorm/RMSNorm normalize across features per token (standard for Transformers).",
+    "Pre-Norm placement keeps residual connections unobstructed for gradient flow.",
+    "Always switch BatchNorm to model.eval() during inference so running statistics replace batch statistics."
+  ]}
+/>
+

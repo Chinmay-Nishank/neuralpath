@@ -1,0 +1,133 @@
+---
+title: "Unsupervised Learning: k-Means Clustering & Principal Component Analysis (PCA)"
+module: "classical-ml"
+moduleOrder: 2
+order: 10
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 18
+prerequisites: ["foundations/05-linear-algebra-intuition"]
+objectives:
+  - "Implement Lloyd's k-Means clustering algorithm and choose k with silhouette/inertia curves"
+  - "Compute Principal Component Analysis via SVD of centered features"
+  - "Contrast global linear PCA projections against non-linear t-SNE and UMAP"
+summary: "Discover hidden cluster structure without labels using k-Means and compress high-dimensional variance using PCA."
+tags: ["unsupervised", "kmeans", "pca", "svd", "dimensionality-reduction"]
+vizTypes: ["embeddings"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Finding Structure Without Labels
+
+When datasets have no target labels $y$, **unsupervised learning** uncovers natural structure:
+- **k-Means** partitions points into $k$ compact clusters by alternating two clean steps: *assign each point to its nearest centroid*, then *recompute centroids as cluster means*.
+- **<GlossaryTerm term="Principal Component Analysis">PCA</GlossaryTerm>** rotates coordinate axes to align with directions of **maximum data variance**, allowing us to compress 1,000 correlated features down to 2D/3D visualizations or compact denoised features.
+
+## Interactive Lab: Exploring PCA vs. t-SNE vs. UMAP
+
+Toggle between **PCA**, **t-SNE**, and **UMAP** below to observe how linear PCA preserves global axes while non-linear t-SNE/UMAP separate tight semantic neighborhoods.
+
+<Viz type="embeddings" />
+
+<Callout type="math-deep-dive" title="PCA via SVD of Centered Data">
+  Given centered matrix $\tilde{X} = X - \bar{X}$ with SVD $\tilde{X} = U \Sigma V^T$:
+  - Principal directions are the right singular vectors (rows of $V^T$).
+  - Top-$k$ projection is $Z_k = \tilde{X} V_k$.
+  - Explained variance per component is $\sigma_i^2 / (N - 1)$.
+</Callout>
+
+## Runnable Code: k-Means & PCA From Scratch vs. scikit-learn
+
+<CodeRunner
+  title="k-Means & PCA via SVD vs. scikit-learn"
+  code={`import numpy as np
+
+# 1. PCA via SVD on centered 2D correlated data
+rng = np.random.default_rng(42)
+x1 = rng.normal(0, 2.0, size=60)
+x2 = 0.85 * x1 + rng.normal(0, 0.35, size=60)
+X = np.column_stack([x1, x2])
+
+X_centered = X - X.mean(axis=0)
+_, S, Vt = np.linalg.svd(X_centered, full_matrices=False)
+var_ratio = (S ** 2) / np.sum(S ** 2)
+print("PCA explained variance ratio:", var_ratio.round(4))
+
+# 2. 2-cluster k-Means loop
+pts = np.vstack([rng.normal([-2, -2], 0.4, (20, 2)), rng.normal([2, 2], 0.4, (20, 2))])
+centroids = np.array([[-1.0, 0.5], [1.0, -0.5]])
+for _ in range(8):
+    dists = np.linalg.norm(pts[:, None, :] - centroids[None, :, :], axis=-1)
+    labels = np.argmin(dists, axis=1)
+    centroids = np.array([pts[labels == c].mean(axis=0) for c in range(2)])
+print("Converged centroids:\n", centroids.round(3))`}
+  libraryCode={`import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
+df = pd.read_csv("/datasets/iris_mini.csv")
+X = StandardScaler().fit_transform(df[["sepal_length", "sepal_width", "petal_length", "petal_width"]])
+
+pca = PCA(n_components=2).fit(X)
+km = KMeans(n_clusters=3, n_init="auto", random_state=42).fit(X)
+print("2D PCA total variance retained:", round(float(pca.explained_variance_ratio_.sum()), 4))
+print("k-Means inertia:", round(float(km.inertia_), 2))`}
+  exerciseStarter={`import numpy as np
+
+def project_pca(X, k):
+    # TODO: center X, compute SVD, and return projected coordinates X_centered @ V_k
+    return X[:, :k]`}
+  exerciseTests={`X = np.array([[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0]])
+Z = project_pca(X, 1)
+assert Z.shape == (4, 1)
+assert np.allclose(Z.mean(axis=0), 0.0)`}
+  exerciseSolution={`import numpy as np
+
+def project_pca(X, k):
+    X_c = np.asarray(X, dtype=float) - np.mean(X, axis=0)
+    _, _, Vt = np.linalg.svd(X_c, full_matrices=False)
+    return X_c @ Vt[:k].T`}
+  hint1="Subtract np.mean(X, axis=0) before running np.linalg.svd."
+  hint2="Top-k principal directions are Vt[:k].T, so projection is X_c @ Vt[:k].T."
+/>
+
+<Quiz
+  lessonId="classical-ml/10-kmeans-and-pca"
+  questions={[
+    {
+      id: "unsup-q1",
+      type: "mcq",
+      prompt: "Why must features be mean-centered (and usually standardized) before running PCA?",
+      options: [
+        "SVD fails unless all entries are positive",
+        "Uncentered means or large-scale units dominate variance directions artificially",
+        "PCA requires target labels to standardize",
+        "Standardizing turns PCA into k-Means"
+      ],
+      answer: 1,
+      explanation: "PCA maximizes variance; without centering and scaling, raw offset or unit scale hijacks the top principal component."
+    },
+    {
+      id: "unsup-q2",
+      type: "fill-blank",
+      prompt: "In Lloyd's k-Means loop, after assigning each point to its closest centroid, we update each centroid to the ______ of its assigned points.",
+      answer: "mean",
+      acceptableAnswers: ["mean", "average"],
+      explanation: "The arithmetic mean minimizes within-cluster sum of squared Euclidean distances."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "k-Means alternates nearest-centroid assignment and centroid mean updates until assignments stabilize.",
+    "PCA extracts orthogonal directions of maximum variance cleanly via SVD.",
+    "Always standardize features before PCA or k-Means when units differ."
+  ]}
+/>
+

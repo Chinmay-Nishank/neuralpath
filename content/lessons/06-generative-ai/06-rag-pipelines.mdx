@@ -1,0 +1,131 @@
+---
+title: "Retrieval-Augmented Generation (RAG): Hybrid Search, Reranking & Agentic RAG"
+module: "generative-ai"
+moduleOrder: 6
+order: 6
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 19
+prerequisites: ["nlp-transformers/02-word-embeddings", "generative-ai/05-prompt-engineering"]
+objectives:
+  - "Design chunking strategies (recursive token overlap, heading-aware) that preserve context"
+  - "Combine dense embedding similarity with sparse BM25 via Reciprocal Rank Fusion (RRF)"
+  - "Understand Cross-Encoder reranking and Agentic RAG multi-hop query rewriting"
+summary: "Ground LLM responses in live external knowledge using chunking, hybrid dense+BM25 retrieval, reranking, and agentic query routing."
+tags: ["rag", "hybrid-search", "bm25", "reranking", "agentic-rag"]
+vizTypes: ["rag"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Open-Book Exams Beat Memorization
+
+Fine-tuning cannot inject rapidly changing facts or per-user permissions reliably. **<GlossaryTerm term="Retrieval-Augmented Generation">RAG</GlossaryTerm>** turns LLM generation into an open-book exam: retrieve the top-$k$ relevant document chunks at query time, ground the prompt strictly in those passages, and cite sources.
+
+Single-stage vector search often misses exact part numbers, API flags, or acronyms (`ERR_KV_404`). Production pipelines use **Hybrid Search** (dense embeddings + sparse keyword BM25) followed by a **Cross-Encoder Reranker**!
+
+## Interactive Lab: Hybrid Dense + BM25 Scorer
+
+Adjust the **Dense Vector Weight $\alpha$** below to watch how purely semantic search misses exact technical CLI flags (`--kv-cache-dtype`) until hybrid scoring brings BM25 keyword precision into the top rank.
+
+<Viz type="rag" />
+
+<Callout type="tip" title="Agentic RAG Pattern">
+  Rather than running one fixed vector query per prompt, **Agentic RAG** exposes retrieval as a tool (`search_knowledge(query)`). The model can decompose multi-hop questions, rewrite vague queries, inspect snippets, and re-query before answering.
+</Callout>
+
+<Callout type="math-deep-dive" title="Reciprocal Rank Fusion (RRF)">
+  Because BM25 scores ($[0, 30]$) and cosine similarities ($[-1, 1]$) live on incompatible scales, RRF merges rankings purely by rank position $r_i(d)$:
+
+  <Math tex="\text{RRF}(d) = \sum_{i} \frac{1}{k + r_i(d)}, \qquad k = 60" display />
+</Callout>
+
+## Runnable Code: Hybrid RRF Fusion & TF-IDF/Cosine Retriever
+
+<CodeRunner
+  title="Implementing Reciprocal Rank Fusion (RRF) & Hybrid Retrieval"
+  code={`def rrf_fuse(rank_lists, k=60):
+    scores = {}
+    for ranked_docs in rank_lists:
+        for rank, doc_id in enumerate(ranked_docs, start=1):
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)
+    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+dense_ranking = ["doc_rope", "doc_intro", "doc_kv_flag"]
+bm25_ranking = ["doc_kv_flag", "doc_rope", "doc_unrelated"]
+
+fused = rrf_fuse([dense_ranking, bm25_ranking])
+print("Hybrid RRF ranking:", [(doc, round(score, 5)) for doc, score in fused])`}
+  libraryCode={`from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+corpus = [
+    "RoPE rotates query and key embeddings for relative positions.",
+    "Use --kv-cache-dtype fp8 in vLLM to reduce GPU memory usage.",
+    "Gradient descent minimizes training loss along negative gradients.",
+]
+vec = TfidfVectorizer()
+X = vec.fit_transform(corpus)
+q = vec.transform(["vLLM fp8 kv cache flag"])
+sims = cosine_similarity(q, X).ravel()
+best_idx = int(sims.argmax())
+print("Top retrieved chunk:", corpus[best_idx], "| score:", round(float(sims[best_idx]), 3))`}
+  exerciseStarter={`def chunk_text(text, chunk_size=100, overlap=20):
+    # TODO: slice text into overlapping windows advancing by (chunk_size - overlap)
+    return []`}
+  exerciseTests={`chunks = chunk_text("abcdefghij", chunk_size=4, overlap=1)
+assert chunks == ["abcd", "defg", "ghij"]`}
+  exerciseSolution={`def chunk_text(text, chunk_size=100, overlap=20):
+    if chunk_size <= overlap:
+        raise ValueError("chunk_size must exceed overlap")
+    step = chunk_size - overlap
+    chunks = []
+    i = 0
+    while i < len(text):
+        chunks.append(text[i : i + chunk_size])
+        if i + chunk_size >= len(text):
+            break
+        i += step
+    return chunks`}
+  hint1="Step size between chunk starts is chunk_size - overlap."
+  hint2="Stop cleanly once i + chunk_size >= len(text) so you don't emit a redundant tiny tail chunk."
+/>
+
+<Quiz
+  lessonId="generative-ai/06-rag-pipelines"
+  questions={[
+    {
+      id: "rag-q1",
+      type: "mcq",
+      prompt: "Why do production RAG pipelines pair dense vector retrieval with BM25 lexical search?",
+      options: [
+        "Dense vectors handle paraphrasing and semantics, while BM25 catches exact rare tokens, error codes, and IDs",
+        "BM25 runs only on GPUs",
+        "Dense vectors cannot rank more than 3 documents",
+        "Hybrid search eliminates chunking"
+      ],
+      answer: 0,
+      explanation: "Dense embeddings capture meaning while sparse BM25 preserves exact lexical matching."
+    },
+    {
+      id: "rag-q2",
+      type: "fill-blank",
+      prompt: "Merging ranked lists from dense and sparse retrievers using 1 / (k + rank) is called Reciprocal ______ Fusion.",
+      answer: "Rank",
+      acceptableAnswers: ["rank"],
+      explanation: "Reciprocal Rank Fusion (RRF) combines rankings cleanly without requiring score normalization."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Prefer RAG over fine-tuning whenever facts change frequently or require access-control scoping.",
+    "Combine dense + BM25 hybrid retrieval with Reciprocal Rank Fusion and optional Cross-Encoder reranking.",
+    "Include overlapping context windows or structural section headers inside chunks so references aren't orphaned."
+  ]}
+/>
+

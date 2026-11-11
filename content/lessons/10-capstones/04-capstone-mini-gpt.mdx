@@ -1,0 +1,158 @@
+---
+title: "Capstone 3: Build & Train a Mini-GPT Transformer from Scratch"
+module: "capstones"
+moduleOrder: 10
+order: 4
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 35
+prerequisites: ["nlp-transformers/05-transformer-architecture", "nlp-transformers/07-gpt-decoders"]
+objectives:
+  - "Assemble a complete character/subword autoregressive Transformer (Token Embedding + RoPE/Pos + Pre-RMSNorm + Causal Attention + SwiGLU + LM Head)"
+  - "Train the Mini-GPT on next-token cross-entropy until loss drops cleanly"
+  - "Autoregressively sample new continuations from a prompt prefix"
+summary: "Put everything together to build, train, and sample from your own Mini-GPT decoder Transformer from scratch in PyTorch."
+tags: ["capstone", "mini-gpt", "transformer", "autoregressive", "pytorch"]
+vizTypes: ["attention"]
+colabNotebook: "notebooks/capstones/mini-gpt.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Project Brief: From Raw Text to Autoregressive Generation
+
+You now understand tokenization, embeddings, causal self-attention, Pre-RMSNorm, SwiGLU, residual streams, and AdamW. In Capstone 3, you wire every piece into a working **Mini-GPT**, verify shifted next-token loss `cross_entropy(logits[:, :-1], targets[:, 1:])`, train it on a text corpus, and decode generated tokens!
+
+## Interactive Attention & Causal Mask Inspection
+
+<Viz type="attention" defaultPreset="causal-code" />
+
+## Build It: Full Mini-GPT Training & Sampling Loop
+
+<CodeRunner
+  title="Capstone 3: Mini-GPT Transformer Architecture, Training & Generation"
+  code={`import numpy as np
+
+# Character vocabulary + shifted next-token training pair check
+corpus = "neuralpath teaches transformers from scratch! "
+chars = sorted(set(corpus))
+stoi = {ch: i for i, ch in enumerate(chars)}
+itos = {i: ch for ch, i in stoi.items()}
+
+ids = np.array([stoi[c] for c in corpus])
+x_in = ids[:-1]
+y_tgt = ids[1:]
+print("Vocab size:", len(chars))
+print("Input tokens [0:5] :", [itos[i] for i in x_in[:5]])
+print("Target tokens [0:5]:", [itos[i] for i in y_tgt[:5]])`}
+  libraryCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+torch.manual_seed(42)
+corpus = "neuralpath teaches transformers. transformers learn attention. " * 4
+chars = sorted(set(corpus))
+stoi = {c: i for i, c in enumerate(chars)}
+itos = {i: c for c, i in stoi.items()}
+data = torch.tensor([stoi[c] for c in corpus], dtype=torch.long)
+
+class MiniGPT(nn.Module):
+    def __init__(self, vocab_size, d_model=32, n_heads=4, max_len=64):
+        super().__init__()
+        self.tok_emb = nn.Embedding(vocab_size, d_model)
+        self.pos_emb = nn.Embedding(max_len, d_model)
+        self.norm1 = nn.RMSNorm(d_model)
+        self.qkv = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.proj = nn.Linear(d_model, d_model, bias=False)
+        self.norm2 = nn.RMSNorm(d_model)
+        self.ffn = nn.Sequential(nn.Linear(d_model, d_model * 2), nn.GELU(), nn.Linear(d_model * 2, d_model))
+        self.head = nn.Linear(d_model, vocab_size, bias=False)
+        self.n_heads = n_heads
+        self.head_dim = d_model // n_heads
+
+    def forward(self, idx):
+        B, T = idx.shape
+        x = self.tok_emb(idx) + self.pos_emb(torch.arange(T, device=idx.device))
+        h = self.norm1(x)
+        q, k, v = self.qkv(h).chunk(3, dim=-1)
+        q = q.view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
+        k = k.view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
+        v = v.view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
+        a = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        x = x + self.proj(a.transpose(1, 2).contiguous().view(B, T, -1))
+        x = x + self.ffn(self.norm2(x))
+        return self.head(x)
+
+model = MiniGPT(len(chars))
+opt = torch.optim.AdamW(model.parameters(), lr=0.02)
+
+for step in range(45):
+    xb = data[:-1].unsqueeze(0)[:, :48]
+    yb = data[1:].unsqueeze(0)[:, :48]
+    logits = model(xb)
+    loss = F.cross_entropy(logits.view(-1, len(chars)), yb.reshape(-1))
+    opt.zero_grad(); loss.backward(); opt.step()
+
+model.eval()
+ctx = torch.tensor([[stoi[c] for c in "neural"]], dtype=torch.long)
+with torch.inference_mode():
+    for _ in range(14):
+        nxt = model(ctx)[:, -1, :].argmax(dim=-1, keepdim=True)
+        ctx = torch.cat([ctx, nxt], dim=1)
+
+print(f"Final loss: {loss.item():.3f} | Generated: {''.join(itos[i] for i in ctx[0].tolist())!r}")`}
+  exerciseStarter={`import numpy as np
+
+def causal_lm_pairs(token_ids):
+    # TODO: given 1D token sequence [t0, t1, ..., t_{N-1}], return (inputs, targets) shifted by 1
+    return token_ids, token_ids`}
+  exerciseTests={`x, y = causal_lm_pairs(np.array([10, 20, 30, 40]))
+assert np.array_equal(x, [10, 20, 30])
+assert np.array_equal(y, [20, 30, 40])`}
+  exerciseSolution={`import numpy as np
+
+def causal_lm_pairs(token_ids):
+    arr = np.asarray(token_ids)
+    return arr[:-1], arr[1:]`}
+  hint1="Inputs drop the final token: arr[:-1]."
+  hint2="Targets drop the initial token: arr[1:]."
+/>
+
+<Quiz
+  lessonId="capstones/04-capstone-mini-gpt"
+  questions={[
+    {
+      id: "cap3-q1",
+      type: "mcq",
+      prompt: "In autoregressive LLM training, why are targets shifted left by one token (targets = tokens[1:], inputs = tokens[:-1])?",
+      options: [
+        "To double batch size",
+        "So position t's output logit predicts token t+1 across every position in parallel",
+        "To skip positional embeddings",
+        "Because PyTorch cross_entropy ignores index 0"
+      ],
+      answer: 1,
+      explanation: "Each causal sequence position predicts the very next token simultaneously."
+    },
+    {
+      id: "cap3-q2",
+      type: "fill-blank",
+      prompt: "Before passing Mini-GPT logits of shape (B, T, V) into F.cross_entropy, flatten the batch and sequence axes into shape (______, V).",
+      answer: "B * T",
+      acceptableAnswers: ["b * t", "b*t", "-1"],
+      explanation: "F.cross_entropy expects (N, C) logits paired with (N,) target token indices."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "A complete working GPT needs surprisingly little code: Embeddings + Pre-Norm Causal Attention + Pre-Norm FFN + LM Head.",
+    "Always verify cross-entropy at step 0 roughly equals ln(vocab_size) before debugging training.",
+    "Weight-tying tok_emb.weight and head.weight saves parameters and boosts small-LM generalization."
+  ]}
+/>
+

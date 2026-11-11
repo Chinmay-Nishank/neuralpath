@@ -1,0 +1,122 @@
+---
+title: "Weight Initialization (Xavier & Kaiming) & Signal Propagation"
+module: "deep-learning"
+moduleOrder: 3
+order: 6
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 15
+prerequisites: ["deep-learning/02-activation-functions"]
+objectives:
+  - "Diagnose why zero initialization causes complete neuron symmetry collapse"
+  - "Derive variance-preserving Xavier/Glorot and Kaiming/He scaling rules"
+  - "Test activation variance across 20 layers in NumPy and PyTorch"
+summary: "Prevent activations and gradients from exploding or collapsing at step 0 using Xavier and Kaiming variance-preserving initialization."
+tags: ["initialization", "kaiming", "xavier", "glorot", "signal-propagation"]
+vizTypes: ["neural-network"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Keeping Signal Alive Across 50 Layers
+
+If you initialize all weights to `0`, every neuron in a hidden layer receives the exact same gradient and stays permanently identical (**symmetry collapse**). If you initialize weights with standard normal `N(0, 1)`, multiplying $d_{\text{in}} = 512$ terms blows up variance by $512\times$ per layer—instantly overflowing to `NaN`!
+
+Variance-preserving initialization scales initial standard deviation inversely with $\sqrt{n_{\text{in}}}$ so signal variance remains $\approx 1$ from input to output.
+
+<Viz type="neural-network" />
+
+<Callout type="math-deep-dive" title="Xavier (Glorot) vs. Kaiming (He) Variance">
+  For layer $y = W x$ with independent inputs of variance $\sigma_x^2$:
+  $\text{Var}(y_i) = n_{\text{in}}\,\text{Var}(W_{ij})\,\sigma_x^2$.
+  - **Xavier/Glorot (Tanh/Sigmoid/Linear):** $\text{Var}(W) = \frac{2}{n_{\text{in}} + n_{\text{out}}}$.
+  - **Kaiming/He (ReLU):** ReLU zeros out half the distribution, halving variance—so we double it back:
+  <Math tex="\text{Var}(W) = \frac{2}{n_{\text{in}}} \implies \sigma_W = \sqrt{\frac{2}{n_{\text{in}}}}" display />
+</Callout>
+
+## Runnable Code: Signal Propagation Through a 20-Layer Network
+
+<CodeRunner
+  title="Testing Naive N(0, 1) vs. Kaiming Initialization Across 20 Layers"
+  code={`import numpy as np
+
+rng = np.random.default_rng(0)
+
+def run_depth_test(init_mode):
+    x = rng.normal(size=(64, 128))
+    for _ in range(20):
+        fan_in = x.shape[1]
+        scale = 1.0 if init_mode == "naive" else np.sqrt(2.0 / fan_in)
+        W = rng.normal(0.0, scale, size=(fan_in, 128))
+        x = np.maximum(0.0, x @ W)
+    return float(np.std(x))
+
+print("Naive N(0,1) std after 20 ReLU layers :", run_depth_test("naive"))
+print("Kaiming He   std after 20 ReLU layers :", round(run_depth_test("kaiming"), 4))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+lin = nn.Linear(256, 256)
+nn.init.kaiming_normal_(lin.weight, nonlinearity="relu")
+nn.init.zeros_(lin.bias)
+
+x = torch.randn(64, 256)
+out = torch.relu(lin(x))
+print("Output std with Kaiming init (target ~1.0):", round(out.std().item(), 3))`}
+  exerciseStarter={`import numpy as np
+
+def kaiming_init(fan_in, fan_out, seed=42):
+    # TODO: sample normal weights with std = sqrt(2.0 / fan_in)
+    rng = np.random.default_rng(seed)
+    return np.zeros((fan_in, fan_out))`}
+  exerciseTests={`W = kaiming_init(200, 100)
+assert W.shape == (200, 100)
+expected_std = np.sqrt(2.0 / 200.0)
+assert abs(W.std() - expected_std) < 0.015`}
+  exerciseSolution={`import numpy as np
+
+def kaiming_init(fan_in, fan_out, seed=42):
+    rng = np.random.default_rng(seed)
+    return rng.normal(0.0, np.sqrt(2.0 / fan_in), size=(fan_in, fan_out))`}
+  hint1="Pass std = np.sqrt(2.0 / fan_in) into rng.normal(...)."
+  hint2="Specify size=(fan_in, fan_out)."
+/>
+
+<Quiz
+  lessonId="deep-learning/06-weight-initialization"
+  questions={[
+    {
+      id: "init-q1",
+      type: "mcq",
+      prompt: "Why does Kaiming initialization use numerator 2 (2 / fan_in) instead of 1 (1 / fan_in) for ReLU layers?",
+      options: [
+        "To initialize biases to 2",
+        "Because ReLU zeroes out roughly half of activations, cutting variance in half",
+        "To make weights positive",
+        "Because fan_out is always double fan_in"
+      ],
+      answer: 1,
+      explanation: "Zeroing negative activations halves output variance, so scaling weight variance by 2/fan_in preserves unit signal variance."
+    },
+    {
+      id: "init-q2",
+      type: "fill-blank",
+      prompt: "Initializing all weights to zero causes ______ collapse, where every neuron computes identical features forever.",
+      answer: "symmetry",
+      acceptableAnswers: ["symmetry", "symmetrical"],
+      explanation: "Zero weights yield identical activations and identical gradients across every hidden neuron."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Never initialize weight matrices to constant zero; break symmetry randomly.",
+    "Use Kaiming/He scaling sqrt(2/fan_in) for ReLU/GELU networks and Xavier/Glorot for Tanh.",
+    "Scale residual output projections by 1/sqrt(2 * n_layers) in deep Transformers to prevent residual blow-up."
+  ]}
+/>
+

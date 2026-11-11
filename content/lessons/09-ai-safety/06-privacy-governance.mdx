@@ -1,0 +1,128 @@
+---
+title: "Differential Privacy, Data Provenance & AI Governance Standards"
+module: "ai-safety"
+moduleOrder: 9
+order: 6
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 15
+prerequisites: ["ai-safety/01-bias-fairness"]
+objectives:
+  - "Quantify privacy guarantees mathematically via (epsilon, delta)-Differential Privacy and DP-SGD"
+  - "Prevent training-data memorization leaks via deduplication and PII scrubbing"
+  - "Document models responsibly with Model Cards, audit trails, and risk-tiered governance"
+summary: "Build privacy-preserving ML pipelines using Differential Privacy, DP-SGD gradient clipping, provenance tracking, and Model Cards."
+tags: ["differential-privacy", "dp-sgd", "governance", "model-cards", "provenance"]
+vizTypes: ["probability"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Protecting Individual Training Records
+
+Large models memorize rare verbatim secrets (SSNs, API keys, private medical notes) seen during training—making them vulnerable to **membership inference** or training-data extraction attacks.
+
+**<GlossaryTerm term="Differential Privacy">Differential Privacy (DP)</GlossaryTerm>** gives a rigorous mathematical promise: whether *your* personal record is included in or removed from the training dataset changes the model's output probabilities by at most $e^\epsilon$. In **DP-SGD**, we achieve this in two steps per sample:
+1. **Clip per-sample gradients** to norm $C$ (bounding any single person's influence).
+2. **Add calibrated Gaussian noise** $\mathcal{N}(0, \sigma^2 C^2 I)$ before averaging the batch update.
+
+<Viz type="probability" />
+
+<Callout type="math-deep-dive" title="Randomized Response & (ε, δ)-Differential Privacy">
+  A randomized algorithm $\mathcal{M}$ is $(\epsilon, \delta)$-differentially private if for any two datasets $D, D'$ differing in one single user record and any output event $S$:
+  <Math tex="\Pr[\mathcal{M}(D) \in S] \le e^\epsilon \Pr[\mathcal{M}(D') \in S] + \delta" display />
+  Smaller $\epsilon$ gives stronger privacy at the cost of extra gradient noise.
+</Callout>
+
+## Runnable Code: DP-SGD Per-Sample Gradient Clipping & Noising
+
+<CodeRunner
+  title="Implementing DP-SGD Per-Sample Clipping + Gaussian Noise"
+  code={`import numpy as np
+
+def dp_sgd_step(per_sample_grads, clip_norm=1.0, noise_mult=0.5, seed=42):
+    # Clip EVERY sample's gradient individually before averaging!
+    clipped = []
+    for g in per_sample_grads:
+        norm = float(np.linalg.norm(g))
+        scale = min(1.0, clip_norm / max(1e-12, norm))
+        clipped.append(g * scale)
+    avg_grad = np.mean(clipped, axis=0)
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(0.0, noise_mult * clip_norm / len(per_sample_grads), size=avg_grad.shape)
+    return avg_grad + noise
+
+grads = np.array([[0.2, 0.3], [50.0, -50.0], [0.1, -0.2]])  # Sample 1 is an extreme outlier!
+private_grad = dp_sgd_step(grads, clip_norm=1.0, noise_mult=0.4)
+print("DP-SGD bounded update:", np.round(private_grad, 4))`}
+  libraryCode={`# Generating a structured Model Card & Governance Audit Record
+import json
+
+model_card = {
+    "model_id": "neuralpath-classifier-v1",
+    "intended_use": "Educational curriculum scoring; not approved for clinical diagnostics.",
+    "privacy_guarantee": "DP-SGD epsilon=3.2, delta=1e-5",
+    "known_limitations": ["Evaluated primarily on English inputs"],
+    "audit_trail_enabled": True,
+}
+print(json.dumps(model_card, indent=2))`}
+  exerciseStarter={`import numpy as np
+
+def clip_per_sample_grad(grad, max_norm=1.0):
+    # TODO: clip a single gradient vector so its L2 norm <= max_norm
+    return grad`}
+  exerciseTests={`g1 = np.array([3.0, 4.0])  # norm = 5.0
+c1 = clip_per_sample_grad(g1, max_norm=1.0)
+assert abs(np.linalg.norm(c1) - 1.0) < 1e-6
+g2 = np.array([0.3, 0.4])  # norm = 0.5 <= 1.0
+assert np.allclose(clip_per_sample_grad(g2, max_norm=1.0), g2)`}
+  exerciseSolution={`import numpy as np
+
+def clip_per_sample_grad(grad, max_norm=1.0):
+    g = np.asarray(grad, dtype=float)
+    norm = float(np.linalg.norm(g))
+    if norm > max_norm:
+        return g * (max_norm / norm)
+    return g`}
+  hint1="Check if np.linalg.norm(grad) > max_norm."
+  hint2="If exceeded, scale grad by max_norm / norm; otherwise leave unchanged."
+/>
+
+<Quiz
+  lessonId="ai-safety/06-privacy-governance"
+  questions={[
+    {
+      id: "priv-q1",
+      type: "mcq",
+      prompt: "Why must DP-SGD clip gradients per individual sample BEFORE averaging the mini-batch rather than clipping the batch mean?",
+      options: [
+        "Per-sample clipping uses less CPU",
+        "Bounding individual sensitivity guarantees no single extreme training record can sway the average beyond clip_norm / B",
+        "Batch averaging destroys differential equations",
+        "It increases memorization of rare secrets"
+      ],
+      answer: 1,
+      explanation: "Differential privacy requires bounding the maximum contribution of any single record prior to noise addition."
+    },
+    {
+      id: "priv-q2",
+      type: "fill-blank",
+      prompt: "A smaller privacy budget ______ in (epsilon, delta)-Differential Privacy provides stronger user anonymity.",
+      answer: "epsilon",
+      acceptableAnswers: ["epsilon", "ε"],
+      explanation: "Smaller epsilon bounds the multiplicative shift in output probabilities from adding or removing one record."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Deduplicate training corpora and scrub PII before training to cut verbatim memorization.",
+    "DP-SGD bounds single-record sensitivity via per-sample gradient clipping plus calibrated Gaussian noise.",
+    "Ship every production model with a Model Card, data provenance manifest, and immutable tool audit logs."
+  ]}
+/>
+

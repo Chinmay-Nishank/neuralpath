@@ -1,0 +1,124 @@
+---
+title: "Evaluating Generative AI: Ragas Triad, LLM-as-a-Judge & Golden Suites"
+module: "generative-ai"
+moduleOrder: 6
+order: 9
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 17
+prerequisites: ["generative-ai/06-rag-pipelines", "generative-ai/08-agents-tool-use-mcp"]
+objectives:
+  - "Measure RAG components separately via the Ragas triad (Faithfulness, Answer Relevance, Context Recall)"
+  - "Combine deterministic code assertions with calibrated LLM-as-a-Judge rubrics"
+  - "Gate prompt, chunking, or model changes with version-controlled golden evaluation sets"
+summary: "Replace 'vibe checks' with quantitative evaluation pipelines covering RAG faithfulness, tool-argument accuracy, and CI regression gates."
+tags: ["evaluation", "ragas", "llm-as-judge", "faithfulness", "ci-cd"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: You Cannot Improve What You Only Eyeball
+
+Swapping an embedding model, shrinking chunk sizes from 512 to 256, or tweaking three words in a system prompt can silently break 15% of edge cases while looking fine on two hand-picked prompts.
+
+Production AI engineering breaks evaluation into explicit layers:
+1. **Deterministic Assertions:** valid JSON schema, citation IDs present, no forbidden PII leaks, latency under budget.
+2. **The RAG Triad:** evaluate **Context Precision/Recall** (did retrieval find the facts?), **Faithfulness** (is every claim grounded in retrieved context without hallucination?), and **Answer Relevance** separately.
+3. **Calibrated LLM-as-a-Judge:** grade nuanced outputs against clear 1–5 rubrics and verify judge alignment (`Cohen's kappa`) against a human-labeled golden validation set!
+
+<Viz type="roc-pr" />
+
+<Callout type="warning" title="Watch Out for Judge Bias">
+  LLM judges exhibit **position bias** (preferring Option A over Option B when paired side-by-side) and **verbosity bias** (rewarding longer answers). Always randomize pairwise order (`A/B` and `B/A`) and calibrate against human labels.
+</Callout>
+
+<Callout type="math-deep-dive" title="Evaluating Agentic Tool Calls Directly">
+  Instead of grading only final prose, inspect tool spans directly for **Tool Selection Accuracy** and **Argument Correctness** against typed schemas—giving deterministic ground truth even on open-ended tasks.
+</Callout>
+
+## Runnable Code: Deterministic + Retrieval Eval Scorer
+
+<CodeRunner
+  title="Evaluating Retrieval Recall@k, Grounded Citations & Judge Agreement"
+  code={`def recall_at_k(retrieved_ids, gold_ids, k=3):
+    top_k = set(retrieved_ids[:k])
+    gold = set(gold_ids)
+    return len(top_k & gold) / max(1, len(gold))
+
+def check_citations_grounded(answer_citations, retrieved_ids):
+    return set(answer_citations).issubset(set(retrieved_ids))
+
+cases = [
+    {"retrieved": ["d2", "d5", "d1"], "gold": ["d1", "d2"], "cited": ["d2", "d1"]},
+    {"retrieved": ["d3", "d4", "d7"], "gold": ["d1"], "cited": ["d9"]},
+]
+
+for idx, c in enumerate(cases):
+    rec = recall_at_k(c["retrieved"], c["gold"], k=3)
+    grounded = check_citations_grounded(c["cited"], c["retrieved"])
+    print(f"Case {idx+1}: Recall@3={rec:.2f} | Citations Grounded={grounded}")`}
+  libraryCode={`from sklearn.metrics import cohen_kappa_score
+
+# Verify how closely an automated LLM-as-a-Judge aligns with human graders
+human_pass = [1, 1, 0, 1, 0, 0, 1, 1, 0, 1]
+judge_pass = [1, 1, 0, 1, 1, 0, 1, 1, 0, 1]
+
+kappa = cohen_kappa_score(human_pass, judge_pass)
+print("Human vs LLM-Judge Cohen's Kappa:", round(float(kappa), 3))`}
+  exerciseStarter={`def mean_reciprocal_rank(rankings, gold_ids):
+    # rankings: list of ranked doc-id lists per query; gold_ids: target doc-id per query
+    # TODO: compute mean of 1 / (1-based rank of gold_id), or 0 if missing
+    return 0.0`}
+  exerciseTests={`r = [["d2", "d1"], ["d3", "d4", "d5"]]
+g = ["d1", "d3"]
+# Ranks: 2 -> 0.5, 1 -> 1.0 -> MRR = 0.75
+assert abs(mean_reciprocal_rank(r, g) - 0.75) < 1e-7`}
+  exerciseSolution={`def mean_reciprocal_rank(rankings, gold_ids):
+    total = 0.0
+    for ranked, target in zip(rankings, gold_ids):
+        if target in ranked:
+            total += 1.0 / (ranked.index(target) + 1)
+    return total / max(1, len(gold_ids))`}
+  hint1="Use ranked.index(target) + 1 for the 1-based position."
+  hint2="Average reciprocal ranks across all queries."
+/>
+
+<Quiz
+  lessonId="generative-ai/09-llm-evaluation"
+  questions={[
+    {
+      id: "eval-q1",
+      type: "mcq",
+      prompt: "In RAG evaluation, what does Faithfulness (Groundedness) specifically measure?",
+      options: [
+        "How fast tokens stream",
+        "Whether claims in the generated response are strictly supported by retrieved context chunks",
+        "The size of the embedding vector",
+        "The total number of training epochs"
+      ],
+      answer: 1,
+      explanation: "Faithfulness catches unsupported hallucinations even when retrieved chunks were accurate."
+    },
+    {
+      id: "eval-q2",
+      type: "fill-blank",
+      prompt: "To mitigate position bias when using an LLM-as-a-Judge for pairwise A/B comparisons, run each pair in ______ orderings and check consistency.",
+      answer: "both",
+      acceptableAnswers: ["both", "swapped", "reversed"],
+      explanation: "Swapping A and B eliminates preference for whichever response appears first in context."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Evaluate retrieval quality (Recall@k, Precision) separately from generator Faithfulness.",
+    "Combine cheap deterministic assertions with rubric-calibrated LLM-as-a-Judge suites.",
+    "Block prompt or retrieval merges in CI whenever scores regress on your golden dataset."
+  ]}
+/>
+

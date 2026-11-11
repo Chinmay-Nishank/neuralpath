@@ -1,0 +1,127 @@
+---
+title: "Large Language Models: Scaling Laws, Chinchilla & Mixture-of-Experts (MoE)"
+module: "generative-ai"
+moduleOrder: 6
+order: 4
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 19
+prerequisites: ["nlp-transformers/07-gpt-decoders"]
+objectives:
+  - "Predict cross-entropy loss scaling from parameter count N, token budget D, and FLOPs C"
+  - "Apply Chinchilla compute-optimal scaling (~20 tokens per parameter) vs. inference-optimal overtraining"
+  - "Implement sparse Top-k Mixture-of-Experts (MoE) routing in PyTorch"
+summary: "Understand LLM scaling laws, compute vs. inference tradeoffs, and sparse Mixture-of-Experts (MoE) routing."
+tags: ["scaling-laws", "chinchilla", "moe", "mixture-of-experts", "llm"]
+vizTypes: ["quantization"]
+colabNotebook: "notebooks/generative-ai/moe-scaling.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Power Laws & Sparse Active Compute
+
+Pretraining loss drops smoothly as a **power law** in compute, dataset size, and parameter count. **Chinchilla scaling** (Hoffmann et al., 2022) showed that to minimize pretraining loss for a fixed FLOP budget $C \approx 6 N D$, model size $N$ and training tokens $D$ should scale *equally*—roughly **20 tokens per parameter** (e.g., 1.4T tokens for 70B).
+
+In production, however, smaller models trained far past Chinchilla optimality (e.g., 8B parameters on 15T tokens) serve orders of magnitude faster! Better still: **<GlossaryTerm term="Mixture of Experts">Mixture-of-Experts (MoE)</GlossaryTerm>** replaces each dense FFN with $E$ parallel expert FFNs and routes each token to only the **top-2** experts—giving 100B+ total knowledge capacity at ~15B active FLOPs per token!
+
+<Viz type="quantization" />
+
+<Callout type="math-deep-dive" title="Chinchilla Power-Law Approximation & MoE Routing">
+  Chinchilla models irreducible entropy plus parameter/data bottlenecks:
+  <Math tex="L(N, D) = E + \frac{A}{N^\alpha} + \frac{B}{D^\beta}" display />
+  In MoE layers, a lightweight linear router computes gating probabilities $g(x) = \text{softmax}(x W_g)$, keeps top-$k$ experts $\mathcal{T}$, and adds an auxiliary **load-balancing loss** so every expert processes equal token volume.
+</Callout>
+
+## Runnable Code: Compute Budget Math & Top-2 MoE Layer
+
+<CodeRunner
+  title="Chinchilla FLOP Calculator & Sparse Top-2 MoE Layer"
+  code={`# Pretraining compute approximation: C ≈ 6 * N * D FLOPs
+def chinchilla_estimate(params_b, tokens_t):
+    N = params_b * 1e9
+    D = tokens_t * 1e12
+    flops = 6.0 * N * D
+    ratio = D / N
+    return flops, ratio
+
+for name, p_b, t_t in [("Chinchilla 70B", 70, 1.4), ("Inference-tuned 8B", 8, 15.0)]:
+    flops, tok_per_param = chinchilla_estimate(p_b, t_t)
+    print(f"{name:20s}: FLOPs={flops:.2e}, tokens/param={tok_per_param:.1f}")`}
+  libraryCode={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Top2MoE(nn.Module):
+    def __init__(self, d_model=32, num_experts=4, top_k=2):
+        super().__init__()
+        self.top_k = top_k
+        self.router = nn.Linear(d_model, num_experts, bias=False)
+        self.experts = nn.ModuleList([
+            nn.Sequential(nn.Linear(d_model, d_model * 2), nn.SiLU(), nn.Linear(d_model * 2, d_model))
+            for _ in range(num_experts)
+        ])
+
+    def forward(self, x):
+        # x: (N_tokens, d_model)
+        logits = self.router(x)
+        weights, indices = torch.topk(F.softmax(logits, dim=-1), self.top_k, dim=-1)
+        weights = weights / weights.sum(dim=-1, keepdim=True)
+        out = torch.zeros_like(x)
+        for k_idx in range(self.top_k):
+            for e_id, expert in enumerate(self.experts):
+                mask = (indices[:, k_idx] == e_id)
+                if mask.any():
+                    out[mask] += weights[mask, k_idx:k_idx+1] * expert(x[mask])
+        return out
+
+moe = Top2MoE()
+print("Sparse MoE output shape:", tuple(moe(torch.randn(10, 32)).shape))`}
+  exerciseStarter={`def estimate_training_flops(num_params, num_tokens):
+    # TODO: return approximate dense Transformer pretraining FLOPs (6 * N * D)
+    return 0.0`}
+  exerciseTests={`assert estimate_training_flops(1e9, 20e9) == 1.2e20`}
+  exerciseSolution={`def estimate_training_flops(num_params, num_tokens):
+    return 6.0 * float(num_params) * float(num_tokens)`}
+  hint1="Each token performs ~2 FLOPs per parameter forward and ~4 FLOPs backward."
+  hint2="Multiply 6.0 * num_params * num_tokens."
+/>
+
+<Quiz
+  lessonId="generative-ai/04-scaling-laws-llms"
+  questions={[
+    {
+      id: "moe-q1",
+      type: "mcq",
+      prompt: "Why do sparse Mixture-of-Experts (MoE) models achieve lower latency per token than dense models with the same total parameter count?",
+      options: [
+        "They delete half the layers after training",
+        "Each token routes through only a small subset (e.g., top-2) of expert FFNs rather than all parameters",
+        "They avoid positional embeddings",
+        "They use batch size 1 during pretraining"
+      ],
+      answer: 1,
+      explanation: "Total capacity grows with expert count while active FLOPs per token stay bounded by top-k routing."
+    },
+    {
+      id: "moe-q2",
+      type: "fill-blank",
+      prompt: "Chinchilla scaling suggests roughly ______ training tokens per parameter for pure pretraining compute-optimality.",
+      answer: "20",
+      acceptableAnswers: ["20", "twenty"],
+      explanation: "Hoffmann et al. found ~20 tokens per parameter minimizes loss at fixed pretraining FLOPs."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Dense pretraining requires roughly 6 * N * D FLOPs; balance N and D or overtrain smaller models for cheap serving.",
+    "Sparse MoE boosts knowledge capacity while keeping active inference FLOPs low.",
+    "Auxiliary load-balancing losses prevent router collapse onto a single overused expert."
+  ]}
+/>
+

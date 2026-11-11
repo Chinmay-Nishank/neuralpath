@@ -1,0 +1,133 @@
+---
+title: "Calculus for ML: Derivatives, Partial Gradients, Chain Rule & Jacobians"
+module: "foundations"
+moduleOrder: 1
+order: 6
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["foundations/05-linear-algebra-intuition"]
+objectives:
+  - "Compute derivatives analytically and verify them numerically via finite differences"
+  - "Assemble gradients from partial derivatives across multi-parameter functions"
+  - "Apply the chain rule backward through nested layers (the heart of backpropagation)"
+summary: "Understand derivatives, partial gradients, and the multivariate chain rule with live computational graphs and numerical gradient checks."
+tags: ["calculus", "gradients", "chain-rule", "finite-differences"]
+vizTypes: ["backprop"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Sensitivity to Tiny Nudges
+
+A derivative $\frac{df}{dx}$ answers a practical question: *if I nudge $x$ by a tiny amount $\epsilon$, how much does output $f(x)$ respond?* When a model has millions of weights $\theta_1, \dots, \theta_p$, the **<GlossaryTerm term="Gradient">gradient</GlossaryTerm>** packs every weight's sensitivity into a single vector $\nabla_\theta L$.
+
+## Interactive Lab: Chain Rule on a Computational Graph
+
+Step through **Stage 1 → 5** and adjust weight $w$ below to watch how local slopes multiply along the path from loss $L$ back to $w$.
+
+<Viz type="backprop" />
+
+<Callout type="math-deep-dive" title="Multivariate Chain Rule & Finite-Difference Gradient Check">
+  For a composite function $L(g(h(w)))$, the chain rule multiplies local derivatives:
+
+  <Math tex="\frac{\partial L}{\partial w} = \frac{\partial L}{\partial g} \cdot \frac{\partial g}{\partial h} \cdot \frac{\partial h}{\partial w}" display />
+
+  To catch bugs in custom backward passes, compare analytic gradients against central finite differences:
+
+  <Math tex="\frac{\partial L}{\partial w} \approx \frac{L(w + \epsilon) - L(w - \epsilon)}{2\epsilon}, \quad \epsilon = 10^{-5}" display />
+</Callout>
+
+<Callout type="tip" title="Why Central Differences Beat Forward Differences">
+  Central differences cancel the second-order Taylor error term $O(\epsilon)$, yielding $O(\epsilon^2)$ precision—an essential sanity check whenever implementing custom autograd ops.
+</Callout>
+
+## Runnable Code: Analytic Chain Rule vs. PyTorch Autograd
+
+<CodeRunner
+  title="Analytic Gradients Verified Against Finite Differences & PyTorch"
+  code={`import numpy as np
+
+def forward_loss(x, w, b, y):
+    z = w * x + b
+    a = 1.0 / (1.0 + np.exp(-z))  # sigmoid
+    loss = 0.5 * (a - y) ** 2
+    return loss, a
+
+x, w, b, y = 1.5, 0.8, -0.2, 1.0
+loss, a = forward_loss(x, w, b, y)
+
+# Analytic chain rule
+dL_da = a - y
+da_dz = a * (1.0 - a)
+dL_dw = dL_da * da_dz * x
+
+# Central finite-difference verification
+eps = 1e-5
+loss_plus, _ = forward_loss(x, w + eps, b, y)
+loss_minus, _ = forward_loss(x, w - eps, b, y)
+numeric_dL_dw = (loss_plus - loss_minus) / (2.0 * eps)
+
+print(f"Analytic  dL/dw: {dL_dw:.8f}")
+print(f"Numerical dL/dw: {numeric_dL_dw:.8f}")`}
+  libraryCode={`import torch
+
+x = torch.tensor(1.5)
+w = torch.tensor(0.8, requires_grad=True)
+b = torch.tensor(-0.2, requires_grad=True)
+y = torch.tensor(1.0)
+
+a = torch.sigmoid(w * x + b)
+loss = 0.5 * (a - y) ** 2
+loss.backward()
+
+print("PyTorch autograd dL/dw:", round(w.grad.item(), 8))
+print("PyTorch autograd dL/db:", round(b.grad.item(), 8))`}
+  exerciseStarter={`def numerical_grad(fn, x, eps=1e-5):
+    # TODO: return central finite difference (fn(x + eps) - fn(x - eps)) / (2 * eps)
+    return 0.0`}
+  exerciseTests={`g1 = numerical_grad(lambda x: x ** 3, 2.0)
+assert abs(g1 - 12.0) < 1e-6, f"Expected 12.0, got {g1}"
+import math
+g2 = numerical_grad(math.sin, 0.0)
+assert abs(g2 - 1.0) < 1e-6`}
+  exerciseSolution={`def numerical_grad(fn, x, eps=1e-5):
+    return (fn(x + eps) - fn(x - eps)) / (2.0 * eps)`}
+  hint1="Evaluate fn at both x + eps and x - eps."
+  hint2="Divide the difference by 2.0 * eps."
+/>
+
+<Quiz
+  lessonId="foundations/06-calculus-gradients"
+  questions={[
+    {
+      id: "calc-q1",
+      type: "mcq",
+      prompt: "If z = w * x + b and L = f(z), what is ∂L/∂w by the chain rule?",
+      options: ["∂L/∂z + x", "(∂L/∂z) * x", "(∂L/∂z) / x", "w * x"],
+      answer: 1,
+      explanation: "Because ∂z/∂w = x, the chain rule gives ∂L/∂w = (∂L/∂z) · x."
+    },
+    {
+      id: "calc-q2",
+      type: "code-completion",
+      prompt: "Complete the central finite-difference approximation for f'(x):",
+      codeSnippet: "grad = (f(x + eps) - f(x - eps)) / _____",
+      answer: "(2 * eps)",
+      acceptableAnswers: ["(2 * eps)", "2 * eps", "(2.0 * eps)", "2.0 * eps"],
+      explanation: "The total interval width between x - eps and x + eps is 2 * eps."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Gradients assemble partial derivatives telling us how each parameter influences loss.",
+    "The chain rule multiplies local slopes backward through nested operations.",
+    "Central finite differences provide an exact numerical check for analytic derivatives."
+  ]}
+/>
+

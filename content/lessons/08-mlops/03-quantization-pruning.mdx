@@ -1,0 +1,130 @@
+---
+title: "Model Compression: INT8, FP8, AWQ Quantization & Knowledge Distillation"
+module: "mlops"
+moduleOrder: 8
+order: 3
+level: "researcher"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 19
+prerequisites: ["mlops/02-model-serving-batching"]
+objectives:
+  - "Quantize floating-point weights to symmetric INT8 and measure quantization reconstruction error"
+  - "Contrast Post-Training Quantization (PTQ: AWQ/GPTQ/FP8) against Quantization-Aware Training (QAT)"
+  - "Compress large teacher models into fast small students via Knowledge Distillation"
+summary: "Cut model VRAM footprint and memory-bandwidth latency by 2x-4x using INT8/FP8/AWQ quantization and teacher-student distillation."
+tags: ["quantization", "int8", "fp8", "awq", "distillation", "compression"]
+vizTypes: ["quantization"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: 32 Bits Are Overkill for Trained Weights
+
+During training, small gradient steps require FP32/BF16 precision so tiny updates don't round away to zero. Once trained, however, neural weights and activations rarely need 16–32 bits of dynamic range!
+
+Dropping weights from FP16 (16-bit) to **INT8** (8-bit) or **AWQ/NF4** (4-bit) slashes VRAM and memory-bandwidth latency by **2× to 4×**! And when 4-bit compression still isn't small enough, **Knowledge Distillation** trains a compact student model to mimic the soft probability distribution (dark knowledge!) of a much larger teacher.
+
+## Interactive Lab: VRAM Savings vs. Scalar Precision Error
+
+Switch between **FP16**, **INT8**, and **NF4 / AWQ (4-bit)** below and scale parameter count from 1B to 70B to inspect memory hardware requirements.
+
+<Viz type="quantization" />
+
+<Callout type="math-deep-dive" title="Symmetric Uniform INT8 Quantization">
+  Given weight block $W$ with scale $s = \frac{\max |W|}{127}$:
+  <Math tex="W_{\text{int8}} = \text{clamp}\!\left(\text{round}(W / s),\, -127,\, 127\right), \qquad \hat{W} = s \cdot W_{\text{int8}}" display />
+  **AWQ (Activation-Aware Weight Quantization)** protects the ~1% salient weight channels aligned with large activation magnitudes by scaling them up before 4-bit rounding—preserving perplexity virtually unchanged!
+</Callout>
+
+## Runnable Code: Symmetric Per-Channel INT8 Quantizer & KL Distillation
+
+<CodeRunner
+  title="Implementing Symmetric INT8 Quantization & Teacher-Student KL Distillation"
+  code={`import numpy as np
+
+def quantize_int8_per_row(W):
+    max_abs = np.maximum(np.max(np.abs(W), axis=-1, keepdims=True), 1e-8)
+    scale = max_abs / 127.0
+    q = np.clip(np.round(W / scale), -127, 127).astype(np.int8)
+    return q, scale
+
+def dequantize_int8(q, scale):
+    return q.astype(np.float32) * scale
+
+rng = np.random.default_rng(7)
+W = rng.normal(0, 0.25, size=(4, 64)).astype(np.float32)
+q, scale = quantize_int8_per_row(W)
+W_hat = dequantize_int8(q, scale)
+
+print("Original bytes:", W.nbytes, "-> Quantized INT8 bytes:", q.nbytes)
+print("Mean absolute reconstruction error:", round(float(np.mean(np.abs(W - W_hat))), 5))`}
+  libraryCode={`import torch
+import torch.nn.functional as F
+
+# Knowledge Distillation KL loss with softmax temperature T=2.0
+teacher_logits = torch.tensor([[4.0, 1.5, -1.0]])
+student_logits = torch.tensor([[3.1, 1.8, -0.5]], requires_grad=True)
+T = 2.0
+
+p_teacher = F.softmax(teacher_logits / T, dim=-1)
+log_p_student = F.log_softmax(student_logits / T, dim=-1)
+distill_loss = F.kl_div(log_p_student, p_teacher, reduction="batchmean") * (T * T)
+print("Distillation KL loss:", round(distill_loss.item(), 5))`}
+  exerciseStarter={`import numpy as np
+
+def quant_dequant_4bit(W):
+    # Symmetric signed 4-bit integer range [-7, 7]: scale = max(|W|) / 7.0
+    # TODO: return dequantized approximation W_hat
+    return W`}
+  exerciseTests={`W = np.array([0.0, 0.35, -0.70, 0.14])
+W_hat = quant_dequant_4bit(W)
+assert np.max(np.abs(W - W_hat)) <= 0.05`}
+  exerciseSolution={`import numpy as np
+
+def quant_dequant_4bit(W):
+    W = np.asarray(W, dtype=float)
+    scale = max(float(np.max(np.abs(W))), 1e-8) / 7.0
+    q = np.clip(np.round(W / scale), -7, 7)
+    return q * scale`}
+  hint1="Find scale = max(|W|) / 7.0."
+  hint2="Round W / scale, clamp to [-7, 7], then multiply back by scale."
+/>
+
+<Quiz
+  lessonId="mlops/03-quantization-pruning"
+  questions={[
+    {
+      id: "quant-q1",
+      type: "mcq",
+      prompt: "Why does group-wise or per-channel quantization achieve much lower error than single-tensor quantization?",
+      options: [
+        "It uses 64-bit integers",
+        "One extreme outlier weight only widens step size for its own small group rather than crushing precision across the entire matrix",
+        "It skips rounding",
+        "It doubles parameter counts"
+      ],
+      answer: 1,
+      explanation: "Smaller scaling groups isolate outlier channels so normal-magnitude weights preserve resolution."
+    },
+    {
+      id: "quant-q2",
+      type: "fill-blank",
+      prompt: "In Knowledge Distillation, the compact model trained to match soft probability outputs of a larger model is called the ______.",
+      answer: "student",
+      acceptableAnswers: ["student"],
+      explanation: "The student network learns rich dark-knowledge class similarities from the teacher's softened logits."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Group-wise INT8/FP8/AWQ quantization cuts memory 2x-4x while preserving task accuracy.",
+    "Distilling a large teacher into a smaller student reduces permanent inference FLOPs.",
+    "Always benchmark quantized checkpoints on downstream domain accuracy and perplexity—not synthetic loss alone."
+  ]}
+/>
+

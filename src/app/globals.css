@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Neutral 12-step warm stone-slate palette (light mode) */
+  --bg-canvas: #FAF9F6;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F3F2EE;
+  --bg-elevated: #FFFFFF;
+  --border-hairline: #E4E2DC;
+  --border-strong: #C9C5BC;
+
+  --text-primary: #14171F;
+  --text-secondary: #4A5162;
+  --text-muted: #666E80;
+
+  /* Single primary accent (Cobalt) */
+  --accent: #1D4ED8;
+  --accent-hover: #1E40AF;
+  --accent-soft: #EFF6FF;
+  --accent-foreground: #FFFFFF;
+
+  /* Semantic tokens */
+  --status-success: #15803D;
+  --status-success-soft: #DCFCE7;
+  --status-warning: #B45309;
+  --status-warning-soft: #FEF3C7;
+  --status-error: #B91C1C;
+  --status-error-soft: #FEE2E2;
+  --status-info: #0369A1;
+  --status-info-soft: #E0F2FE;
+
+  /* Okabe-Ito color-blind-safe categorical chart palette */
+  --chart-1: #0072B2;
+  --chart-2: #E69F00;
+  --chart-3: #009E73;
+  --chart-4: #CC79A7;
+  --chart-5: #D55E00;
+  --chart-6: #56B4E9;
+  --chart-7: #B8A200;
+  --chart-8: #64748B;
+
+  /* Shape & elevation */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(20, 23, 31, 0.04);
+  --shadow-md: 0 4px 16px rgba(20, 23, 31, 0.06);
+  --shadow-lg: 0 12px 32px rgba(20, 23, 31, 0.10);
+}
+
+.dark {
+  /* Carefully tuned obsidian-slate dark palette (not harsh #000 inversion) */
+  --bg-canvas: #0B0E14;
+  --bg-surface: #121722;
+  --bg-subtle: #1A2130;
+  --bg-elevated: #1E2738;
+  --border-hairline: #242D3F;
+  --border-strong: #344058;
+
+  --text-primary: #EEF1F6;
+  --text-secondary: #A6B0C3;
+  --text-muted: #8490A7;
+
+  --accent: #60A5FA;
+  --accent-hover: #93C5FD;
+  --accent-soft: #172554;
+  --accent-foreground: #0B0E14;
+
+  --status-success: #4ADE80;
+  --status-success-soft: #052E16;
+  --status-warning: #FBBF24;
+  --status-warning-soft: #451A03;
+  --status-error: #F87171;
+  --status-error-soft: #450A0A;
+  --status-info: #38BDF8;
+  --status-info-soft: #082F49;
+
+  --chart-1: #38BDF8;
+  --chart-2: #FBBF24;
+  --chart-3: #34D399;
+  --chart-4: #F472B6;
+  --chart-5: #FB923C;
+  --chart-6: #93C5FD;
+  --chart-7: #FDE047;
+  --chart-8: #94A3B8;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+@layer base {
+  * {
+    border-color: var(--border-hairline);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+/* Lesson prose typography */
+.lesson-prose {
+  font-size: 1.09375rem; /* 17.5px */
+  line-height: 1.72;
+  color: var(--text-primary);
+}
+
+.lesson-prose.font-reading-serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.lesson-prose h2,
+.lesson-prose h3,
+.lesson-prose h4 {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  scroll-margin-top: 5.5rem;
+  letter-spacing: -0.015em;
+}
+
+.lesson-prose .heading-anchor {
+  text-decoration: none;
+  color: inherit;
+}
+
+.lesson-prose .heading-anchor:hover::after {
+  content: ' #';
+  color: var(--accent);
+  font-weight: 400;
+}
+
+.lesson-prose .katex-display {
+  overflow: visible;
+  padding: 0.75rem 0;
+}
+
+@layer utilities {
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 480px;
+  }
+}
+
+/* Honor prefers-reduced-motion globally */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

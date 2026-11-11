@@ -1,0 +1,131 @@
+---
+title: "Linear Regression & Ordinary Least Squares"
+module: "classical-ml"
+moduleOrder: 2
+order: 1
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["foundations/05-linear-algebra-intuition"]
+objectives:
+  - "Formulate multiple linear regression as an orthogonal projection onto column space"
+  - "Solve the normal equations w = (X^T X)^(-1) X^T y and understand when to prefer gradient descent"
+  - "Interpret R^2, MAE, and RMSE on continuous predictions"
+summary: "Learn how linear regression finds the best-fit hyperplane analytically via the Normal Equation and iteratively via gradient descent."
+tags: ["linear-regression", "ols", "normal-equation", "rmse"]
+vizTypes: ["bias-variance"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Fitting a Hyperplane Through Noisy Observations
+
+Suppose you predict home prices from square footage, bedrooms, and age. Linear regression posits that the target is a weighted sum of inputs plus an intercept:
+
+<Math tex="\hat{y} = X w + b" display />
+
+Geometrically, Ordinary Least Squares (OLS) chooses weights $w$ so the residual vector $y - \hat{y}$ is **perpendicular** to every input feature column—minimizing squared vertical distances.
+
+## Interactive Check: Underfitting vs. Curve Complexity
+
+Set polynomial degree to **1** below to see a straight linear fit, then observe how adding degree terms bends the model.
+
+<Viz type="bias-variance" />
+
+<Callout type="math-deep-dive" title="Closed-Form Normal Equation">
+  Augmenting $X$ with a column of ones gives $\hat{y} = \tilde{X}\theta$. Setting the gradient of $\|y - \tilde{X}\theta\|_2^2$ to zero yields:
+
+  <Math tex="\theta^* = (\tilde{X}^T \tilde{X})^{-1} \tilde{X}^T y" display />
+
+  Inverting $\tilde{X}^T \tilde{X}$ costs $O(d^3)$ time. When feature count $d$ exceeds ~10,000, iterative gradient solvers beat matrix inversion.
+</Callout>
+
+## Runnable Code: Normal Equation vs. scikit-learn
+
+<CodeRunner
+  title="Ordinary Least Squares: Normal Equation vs. LinearRegression"
+  code={`import numpy as np
+import pandas as pd
+
+df = pd.read_csv("/datasets/housing_mini.csv")
+X = df[["area_sqft", "bedrooms", "age_years"]].to_numpy()
+y = df["price_k"].to_numpy()
+
+# Append bias column of 1s
+X_aug = np.column_stack([np.ones(len(X)), X])
+# Use lstsq (SVD-based) instead of raw inv() for numerical stability
+theta, _, _, _ = np.linalg.lstsq(X_aug, y, rcond=None)
+preds = X_aug @ theta
+rmse = np.sqrt(np.mean((y - preds) ** 2))
+print("Intercept & weights:", theta.round(3))
+print(f"Training RMSE: \${rmse:.2f}k")`}
+  libraryCode={`import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import root_mean_squared_error, r2_score
+
+df = pd.read_csv("/datasets/housing_mini.csv")
+X = df[["area_sqft", "bedrooms", "age_years"]]
+y = df["price_k"]
+
+model = LinearRegression().fit(X, y)
+preds = model.predict(X)
+print("RMSE:", round(root_mean_squared_error(y, preds), 2))
+print("R^2:", round(r2_score(y, preds), 4))`}
+  exerciseStarter={`import numpy as np
+
+def fit_ols(X, y):
+    # TODO: append ones column and solve with np.linalg.lstsq, returning (bias, weights)
+    return 0.0, np.zeros(X.shape[1])`}
+  exerciseTests={`X = np.array([[1.0, 2.0], [2.0, 0.0], [3.0, 1.0], [4.0, 3.0]])
+y = 2.0 * X[:, 0] - 1.5 * X[:, 1] + 5.0
+b, w = fit_ols(X, y)
+assert abs(b - 5.0) < 1e-6 and np.allclose(w, [2.0, -1.5])`}
+  exerciseSolution={`import numpy as np
+
+def fit_ols(X, y):
+    X = np.asarray(X, dtype=float)
+    X_aug = np.column_stack([np.ones(len(X)), X])
+    theta, _, _, _ = np.linalg.lstsq(X_aug, y, rcond=None)
+    return float(theta[0]), theta[1:]`}
+  hint1="Prepend a column of ones with np.column_stack([np.ones(len(X)), X])."
+  hint2="np.linalg.lstsq(X_aug, y, rcond=None)[0] gives theta where theta[0] is bias."
+/>
+
+<Quiz
+  lessonId="classical-ml/01-linear-regression"
+  questions={[
+    {
+      id: "lr-q1",
+      type: "mcq",
+      prompt: "Why does numerical code prefer np.linalg.lstsq or QR/SVD over directly computing np.linalg.inv(X.T @ X)?",
+      options: [
+        "lstsq only works for 1D arrays",
+        "Forming X^T X squares the condition number, amplifying collinearity errors",
+        "inv() returns complex numbers on integer arrays",
+        "lstsq automatically runs L1 regularization"
+      ],
+      answer: 1,
+      explanation: "Squaring the condition number hurts numerical precision when features are correlated; SVD/QR avoids forming X^T X explicitly."
+    },
+    {
+      id: "lr-q2",
+      type: "fill-blank",
+      prompt: "The fraction of target variance explained by a regression model is called the ______ score.",
+      answer: "R^2",
+      acceptableAnswers: ["r^2", "r2", "r-squared", "coefficient of determination"],
+      explanation: "R^2 = 1 - SS_res / SS_tot measures explained variance relative to predicting the target mean."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Linear regression projects targets onto the linear span of features.",
+    "Use SVD-backed solvers (lstsq) instead of raw matrix inversion to stay numerically stable.",
+    "Evaluate continuous fits with RMSE/MAE in target units alongside R^2."
+  ]}
+/>
+

@@ -1,0 +1,126 @@
+---
+title: "Linear Algebra with Visual Intuition: Matrices, Dot Products & Eigenvalues"
+module: "foundations"
+moduleOrder: 1
+order: 5
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["foundations/03-numpy-arrays"]
+objectives:
+  - "Interpret matrix multiplication geometrically as rotating, scaling, and shearing space"
+  - "Use dot products and cosine similarity to measure alignment between vectors"
+  - "Connect eigenvalues and SVD to variance compression and LoRA low-rank structure"
+summary: "Build geometric intuition for vectors, matrix transforms, cosine similarity, and eigenvalues that underpin embeddings, PCA, and Transformers."
+tags: ["linear-algebra", "dot-product", "cosine-similarity", "eigenvalues", "svd"]
+vizTypes: ["linear-algebra"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Matrices Are Space Transformers
+
+Every neural layer computes $y = W x + b$. Rather than memorizing rows-times-columns mechanically, picture the columns of $W$ as the new landing spots for your unit coordinate axes $\hat{i}$ and $\hat{j}$. Drag the matrix entries below to watch the unit square stretch, rotate, or collapse.
+
+<Viz type="linear-algebra" />
+
+<Callout type="note" title="Determinant = Area Scaling Factor">
+  When $\det(A) = 0$, the transformation flattens 2D space onto a 1D line or point—meaning information is permanently lost and the matrix has no inverse.
+</Callout>
+
+## Dot Products & Cosine Similarity
+
+The dot product measures how strongly two vectors align:
+
+<Math tex="u \cdot v = \sum_{i=1}^d u_i v_i = \|u\|\,\|v\|\cos\theta" display />
+
+Normalizing by vector magnitudes yields **cosine similarity** $\cos\theta \in [-1, 1]$, which underpins semantic search, RAG retrieval, and attention scoring.
+
+<Callout type="math-deep-dive" title="Eigenvectors & Singular Value Decomposition (SVD)">
+  An eigenvector $v$ of matrix $A$ only stretches without rotating: $A v = \lambda v$. Real-world weight and data matrices are rectangular ($m \times n$), so **SVD** generalizes eigendecomposition as $M = U \Sigma V^T$, keeping the top-$r$ singular directions used in **PCA** and **LoRA** adapters.
+</Callout>
+
+## Runnable Code: Cosine Similarity, Projections & SVD
+
+<CodeRunner
+  title="Dot Product, Cosine Similarity, and Low-Rank SVD"
+  code={`import numpy as np
+
+u = np.array([1.0, 2.0, 0.5])
+v = np.array([2.0, 4.0, 1.0])
+w = np.array([-2.0, 1.0, 0.0])
+
+def cosine_sim(a, b):
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+print("cos(u, v) [aligned]:", round(cosine_sim(u, v), 4))
+print("cos(u, w) [orthogonal]:", round(cosine_sim(u, w), 4))
+
+# Rank-1 SVD approximation of a 4x3 matrix
+M = np.array([[2.0, 4.0, 6.0], [1.0, 2.0, 3.0], [3.0, 6.1, 8.9], [0.5, 1.0, 1.5]])
+U, S, Vt = np.linalg.svd(M, full_matrices=False)
+M_rank1 = S[0] * np.outer(U[:, 0], Vt[0, :])
+print("Singular values:", S.round(3))
+print("Rank-1 reconstruction max error:", round(float(np.max(np.abs(M - M_rank1))), 4))`}
+  libraryCode={`import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+docs = np.array([[1.0, 0.8, 0.1], [0.9, 0.7, 0.2], [0.0, 0.1, 1.0]])
+sim_matrix = cosine_similarity(docs)
+print("Pairwise cosine similarity:\n", sim_matrix.round(3))`}
+  exerciseStarter={`import numpy as np
+
+def pairwise_cosine(A, B):
+    # TODO: compute cosine similarity between unit-normalized rows of A and B
+    return None`}
+  exerciseTests={`A = np.array([[1.0, 0.0], [1.0, 1.0]])
+B = np.array([[1.0, 0.0], [0.0, 1.0]])
+S = pairwise_cosine(A, B)
+assert S.shape == (2, 2)
+assert abs(S[0, 0] - 1.0) < 1e-6 and abs(S[0, 1]) < 1e-6
+assert abs(S[1, 0] - np.sqrt(0.5)) < 1e-5`}
+  exerciseSolution={`import numpy as np
+
+def pairwise_cosine(A, B):
+    A = np.asarray(A, dtype=float)
+    B = np.asarray(B, dtype=float)
+    A_norm = A / np.linalg.norm(A, axis=1, keepdims=True)
+    B_norm = B / np.linalg.norm(B, axis=1, keepdims=True)
+    return A_norm @ B_norm.T`}
+  hint1="Normalize each row of A and B by its L2 norm with keepdims=True."
+  hint2="Once rows have unit length, A_norm @ B_norm.T equals pairwise cosine similarities."
+/>
+
+<Quiz
+  lessonId="foundations/05-linear-algebra-intuition"
+  questions={[
+    {
+      id: "la-q1",
+      type: "mcq",
+      prompt: "If two non-zero embedding vectors have dot product 0, what is the angle between them?",
+      options: ["0 degrees (identical direction)", "90 degrees (orthogonal)", "180 degrees (opposite)", "45 degrees"],
+      answer: 1,
+      explanation: "u · v = ||u|| ||v|| cos(theta). When u · v = 0, cos(theta) = 0, so theta = 90 degrees."
+    },
+    {
+      id: "la-q2",
+      type: "fill-blank",
+      prompt: "A vector whose direction stays unchanged when multiplied by a square matrix A is called an ______.",
+      answer: "eigenvector",
+      acceptableAnswers: ["eigenvector", "eigenvectors"],
+      explanation: "Eigenvectors satisfy Av = lambda * v, scaling only by eigenvalue lambda."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Matrices represent linear transformations of coordinate space; determinant tracks area scaling.",
+    "Cosine similarity measures directional alignment independent of vector length.",
+    "SVD uncovers low-rank structure powering PCA and parameter-efficient fine-tuning (LoRA)."
+  ]}
+/>
+

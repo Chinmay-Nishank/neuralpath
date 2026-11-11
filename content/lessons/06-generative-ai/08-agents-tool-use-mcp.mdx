@@ -1,0 +1,122 @@
+---
+title: "AI Agents, Function Calling, ReAct Loops & Model Context Protocol (MCP)"
+module: "generative-ai"
+moduleOrder: 6
+order: 8
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["generative-ai/06-rag-pipelines"]
+objectives:
+  - "Structure tool-calling ReAct loops (Reason -> Act -> Observe) with strict step budgets"
+  - "Understand the Model Context Protocol (MCP) standardizing JSON-RPC tool servers"
+  - "Protect agents with least-privilege tool allowlists, schema checks, and human-in-the-loop gates"
+summary: "Build reliable tool-using agents with typed JSON schemas, ReAct orchestration, MCP servers, and security guardrails."
+tags: ["agents", "tool-use", "mcp", "react", "security"]
+vizTypes: ["rag"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: LLMs Inside Controlled Feedback Loops
+
+A single prompt pass cannot check live inventory, run SQL queries, or execute unit tests. An **AI Agent** wraps an LLM in a bounded loop: the model inspects tool JSON schemas, emits structured tool arguments, receives real execution observations back in context, and iterates until solved (or max steps reached).
+
+Rather than writing custom integration glue for every framework ($M$ models $\times$ $N$ tools), the **<GlossaryTerm term="Model Context Protocol">Model Context Protocol (MCP)</GlossaryTerm>** standardizes tool, resource, and prompt discovery over JSON-RPC between agent clients and modular MCP servers.
+
+<Viz type="rag" />
+
+<Callout type="warning" title="Agent Security: Least Privilege & Human-in-the-Loop">
+  External documents and web pages read by tools can contain **indirect prompt injections** trying to hijack tool calls! Always enforce per-agent tool allowlists, strict schema validation, step caps (`max_steps`), and mandatory human confirmation before destructive writes (payments, DB deletes, external emails).
+</Callout>
+
+<Callout type="math-deep-dive" title="Reliability Math for Multi-Step Loops">
+  If each independent tool step succeeds with probability $p = 0.95$, a 10-step fragile trajectory without validation or retries succeeds only $0.95^{10} \approx 59.9\%$ of the time! Deterministic tool schemas, self-correction observations, and narrow sub-agent scopes keep reliability high.
+</Callout>
+
+## Runnable Code: Safe Tool Dispatcher & Bounded ReAct Loop
+
+<CodeRunner
+  title="Typed Tool Registry, Allowlist Guard & Bounded ReAct Dispatcher"
+  code={`import json
+
+ALLOWED_TOOLS = {
+    "calculate_compound": lambda principal, rate, years: round(principal * ((1 + rate) ** years), 2),
+    "lookup_status": lambda service: {"service": service, "status": "healthy", "p99_ms": 42},
+}
+
+def execute_tool_call(call_json, allowlist=("calculate_compound",)):
+    call = json.loads(call_json)
+    name = call.get("tool")
+    args = call.get("arguments", {})
+    if name not in allowlist or name not in ALLOWED_TOOLS:
+        return {"error": f"Tool '{name}' is blocked by agent allowlist."}
+    try:
+        return {"ok": True, "result": ALLOWED_TOOLS[name](**args)}
+    except TypeError as exc:
+        return {"error": f"Invalid arguments: {exc}"}
+
+print(execute_tool_call('{"tool": "calculate_compound", "arguments": {"principal": 1000, "rate": 0.05, "years": 3}}'))
+print(execute_tool_call('{"tool": "lookup_status", "arguments": {"service": "db"}}'))`}
+  libraryCode={`# Constructing a clean JSON-RPC 2.0 MCP tools/call request payload
+import json
+
+mcp_request = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+        "name": "search_knowledge",
+        "arguments": {"query": "RoPE rotary frequency scaling", "top_k": 5},
+    },
+}
+print(json.dumps(mcp_request, indent=2))`}
+  exerciseStarter={`def trajectory_success_prob(step_reliability, num_steps):
+    # TODO: return probability all independent steps succeed (step_reliability ** num_steps)
+    return 0.0`}
+  exerciseTests={`assert abs(trajectory_success_prob(0.9, 2) - 0.81) < 1e-7
+assert abs(trajectory_success_prob(0.95, 10) - (0.95 ** 10)) < 1e-7`}
+  exerciseSolution={`def trajectory_success_prob(step_reliability, num_steps):
+    return float(step_reliability) ** int(num_steps)`}
+  hint1="Independent sequential step probabilities multiply together."
+  hint2="Compute step_reliability ** num_steps."
+/>
+
+<Quiz
+  lessonId="generative-ai/08-agents-tool-use-mcp"
+  questions={[
+    {
+      id: "agent-q1",
+      type: "mcq",
+      prompt: "What primary architectural bottleneck does the Model Context Protocol (MCP) solve?",
+      options: [
+        "Training neural weights faster on GPUs",
+        "Replacing custom M x N framework-to-tool integrations with one standard client-server JSON-RPC protocol",
+        "Compressing KV caches to 2 bits",
+        "Tokenizing Unicode strings"
+      ],
+      answer: 1,
+      explanation: "MCP decouples tool/data servers from AI clients through a uniform discovery and invocation protocol."
+    },
+    {
+      id: "agent-q2",
+      type: "fill-blank",
+      prompt: "When an agent reads external untrusted web text containing hidden instructions to exfiltrate data, that attack is called indirect ______ injection.",
+      answer: "prompt",
+      acceptableAnswers: ["prompt"],
+      explanation: "Indirect prompt injection embeds malicious directives inside retrieved tool observations."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Bound agent loops with explicit step limits, typed schemas, and observable trace spans.",
+    "Use MCP to expose data sources and tools cleanly behind standardized JSON-RPC interfaces.",
+    "Enforce least-privilege tool allowlists and human-in-the-loop approvals for state-changing actions."
+  ]}
+/>
+

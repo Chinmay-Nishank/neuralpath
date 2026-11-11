@@ -1,0 +1,126 @@
+---
+title: "Ensembles: Random Forests & Gradient Boosting"
+module: "classical-ml"
+moduleOrder: 2
+order: 9
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 20
+prerequisites: ["classical-ml/08-decision-trees"]
+objectives:
+  - "Contrast variance-reducing Bagging (Random Forests) with bias-reducing Sequential Boosting"
+  - "Explain how random feature subsampling decorrelates trees in a Random Forest"
+  - "Tune learning_rate, n_estimators, and max_depth in HistGradientBoostingClassifier"
+summary: "Understand why tree ensembles dominate tabular benchmarks through bagging decorrelation and stage-wise gradient boosting."
+tags: ["random-forest", "gradient-boosting", "bagging", "ensembles", "tabular"]
+vizTypes: ["bias-variance"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Wisdom of Independent vs. Sequential Crowds
+
+Single decision trees are brittle. Two distinct ensemble philosophies fix this:
+
+1. **Random Forests (Bagging):** Train hundreds of deep trees in parallel on bootstrap samples, sampling only $\sqrt{d}$ candidate features at each split so strong features don't make every tree identical. Averaging their votes slashes **variance**.
+2. **Gradient Boosting (XGBoost / LightGBM / HistGradientBoosting):** Train shallow trees **sequentially**, where each new tree fits the *negative gradient (residuals)* left behind by the previous ensemble—progressively reducing **bias**.
+
+<Viz type="bias-variance" />
+
+<Callout type="tip" title="Tabular ML Baseline Rule">
+  On structured tabular datasets (under ~1M rows), `HistGradientBoostingClassifier` / LightGBM / XGBoost almost always outperform deep MLPs out-of-the-box with far less hyperparameter tuning.
+</Callout>
+
+<Callout type="math-deep-dive" title="Stage-Wise Additive Boosting">
+  At stage $m$, gradient boosting computes pseudo-residuals $r_{im} = -\frac{\partial L(y_i, F_{m-1}(x_i))}{\partial F_{m-1}(x_i)}$, fits a shallow tree $h_m(x)$ to $r_{im}$, and shrinks its contribution by learning rate $\nu \in (0, 1]$:
+
+  <Math tex="F_m(x) = F_{m-1}(x) + \nu \, h_m(x)" display />
+</Callout>
+
+## Runnable Code: Residual Boosting From Scratch vs. RandomForest & HistGBM
+
+<CodeRunner
+  title="Sequential Residual Boosting vs. scikit-learn Tree Ensembles"
+  code={`import numpy as np
+from sklearn.tree import DecisionTreeRegressor
+
+rng = np.random.default_rng(7)
+X = np.linspace(-2, 2, 60).reshape(-1, 1)
+y = np.sin(2.0 * X[:, 0]) + rng.normal(0, 0.12, size=60)
+
+# Toy Gradient Boosting for MSE loss (residuals = y - F)
+F = np.full_like(y, np.mean(y))
+lr = 0.2
+for step in range(15):
+    residuals = y - F
+    tree = DecisionTreeRegressor(max_depth=2, random_state=step).fit(X, residuals)
+    F += lr * tree.predict(X)
+    if step in (0, 4, 14):
+        mse = np.mean((y - F) ** 2)
+        print(f"Boosting stage {step + 1:2d} | MSE: {mse:.4f}")`}
+  libraryCode={`from sklearn.datasets import make_moons
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.model_selection import cross_val_score
+
+X, y = make_moons(n_samples=300, noise=0.22, random_state=42)
+rf = RandomForestClassifier(n_estimators=80, max_features="sqrt", random_state=42)
+gb = HistGradientBoostingClassifier(max_iter=80, learning_rate=0.08, max_depth=3, random_state=42)
+
+print("Random Forest 5-fold CV:", round(cross_val_score(rf, X, y, cv=5).mean(), 3))
+print("HistGradBoost 5-fold CV:", round(cross_val_score(gb, X, y, cv=5).mean(), 3))`}
+  exerciseStarter={`import numpy as np
+
+def majority_vote(tree_preds):
+    # tree_preds shape: (n_trees, n_samples) with binary {0, 1} predictions
+    # TODO: return 1D integer array of majority votes (>= 0.5 mean)
+    return np.zeros(tree_preds.shape[1], dtype=int)`}
+  exerciseTests={`preds = np.array([[1, 0, 1], [1, 1, 0], [0, 0, 1]])
+out = majority_vote(preds)
+assert np.array_equal(out, np.array([1, 0, 1]))`}
+  exerciseSolution={`import numpy as np
+
+def majority_vote(tree_preds):
+    avg = np.mean(tree_preds, axis=0)
+    return (avg >= 0.5).astype(int)`}
+  hint1="Average across trees using axis=0."
+  hint2="Threshold avg >= 0.5 and cast with .astype(int)."
+/>
+
+<Quiz
+  lessonId="classical-ml/09-random-forests-gradient-boosting"
+  questions={[
+    {
+      id: "ens-q1",
+      type: "mcq",
+      prompt: "Why does Random Forest sample a random subset of features (max_features='sqrt') at every split?",
+      options: [
+        "To make training slower and smoother",
+        "To decorrelate trees so dominant features don't make every tree nearly identical",
+        "Because decision trees cannot handle more than 5 features",
+        "To convert classification into clustering"
+      ],
+      answer: 1,
+      explanation: "Decorrelating individual trees ensures averaging reduces ensemble variance substantially."
+    },
+    {
+      id: "ens-q2",
+      type: "fill-blank",
+      prompt: "In gradient boosting for squared error, each new shallow tree is trained to predict the current ensemble's ______.",
+      answer: "residuals",
+      acceptableAnswers: ["residuals", "errors", "pseudo-residuals", "negative gradients"],
+      explanation: "Each sequential tree fits y - F(x) (the negative gradient of 0.5 * (y - F)^2)."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Bagging (Random Forests) averages independent deep trees to slash variance.",
+    "Gradient Boosting fits sequential shallow trees to negative gradients to reduce bias.",
+    "Shrinkage (learning_rate) + early stopping prevent gradient boosted trees from overfitting."
+  ]}
+/>
+

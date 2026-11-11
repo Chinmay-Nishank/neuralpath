@@ -1,0 +1,136 @@
+---
+title: "Optimizers: SGD, Momentum, RMSProp, Adam & AdamW"
+module: "deep-learning"
+moduleOrder: 3
+order: 5
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["classical-ml/02-gradient-descent", "deep-learning/04-backpropagation"]
+objectives:
+  - "Understand why AdamW decouples weight decay from adaptive gradient denominators"
+  - "Configure learning-rate warmup and cosine decay schedules for stable training"
+  - "Implement AdamW from scratch in NumPy and compare against PyTorch torch.optim.AdamW"
+summary: "Go from SGD with Momentum to bias-corrected AdamW and cosine learning-rate scheduling used across modern deep learning."
+tags: ["optimizers", "adamw", "momentum", "lr-schedule", "cosine-decay"]
+vizTypes: ["gradient-descent"]
+colabNotebook: "notebooks/deep-learning/optimizers.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Why AdamW Replaced Plain Adam
+
+In standard L2 regularization, adding $\lambda \theta$ directly to the gradient feeds weight decay *into* Adam's adaptive denominator $\sqrt{\hat{v}_t}$. Parameters with large historical gradients get shrunk far less than intended!
+
+**<GlossaryTerm term="AdamW">AdamW</GlossaryTerm>** (Loshchilov & Hutter, 2019) decouples weight decay cleanly: apply the adaptive gradient step first, then shrink weights directly by $\eta \lambda \theta$—giving consistent regularization across every layer.
+
+## Interactive Lab: Optimizer Behavior on Curvature & Saddles
+
+Switch the landscape below to **Saddle Point** or **Rosenbrock Curved Valley** and watch how adaptive optimizers escape flat plateaus where plain SGD stalls.
+
+<Viz type="gradient-descent" preset="saddle" />
+
+<Callout type="tip" title="Standard LLM & Vision Training Recipe">
+  Pair `AdamW(lr=3e-4, betas=(0.9, 0.95), weight_decay=0.1)` with **linear warmup** (first 2–5% of steps) followed by **cosine annealing** down to $10\%$ of peak learning rate.
+</Callout>
+
+<Callout type="math-deep-dive" title="Decoupled AdamW Update">
+  <Math tex="\theta_t = \theta_{t-1} - \eta \left(\frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} + \lambda \theta_{t-1}\right)" display />
+  Notice $\lambda \theta_{t-1}$ sits **outside** the $1 / \sqrt{\hat{v}_t}$ scaling factor.
+</Callout>
+
+## Runnable Code: AdamW From Scratch vs. PyTorch
+
+<CodeRunner
+  title="Implementing AdamW From Scratch & Cosine LR Schedule"
+  code={`import numpy as np
+
+# Minimize f(theta) = 0.5 * (theta[0]-3)^2 + 5.0 * (theta[1]+2)^2 with AdamW
+theta = np.array([0.0, 0.0], dtype=float)
+m = np.zeros_like(theta)
+v = np.zeros_like(theta)
+lr, b1, b2, eps, wd = 0.15, 0.9, 0.999, 1e-8, 0.01
+
+for t in range(1, 81):
+    g = np.array([theta[0] - 3.0, 10.0 * (theta[1] + 2.0)])
+    m = b1 * m + (1 - b1) * g
+    v = b2 * v + (1 - b2) * (g ** 2)
+    m_hat = m / (1 - b1 ** t)
+    v_hat = v / (1 - b2 ** t)
+    theta = theta * (1.0 - lr * wd) - lr * m_hat / (np.sqrt(v_hat) + eps)
+
+print("AdamW converged theta:", np.round(theta, 3))`}
+  libraryCode={`import torch
+
+w = torch.tensor([0.0, 0.0], requires_grad=True)
+opt = torch.optim.AdamW([w], lr=0.15, weight_decay=0.01)
+sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=80)
+
+for _ in range(80):
+    opt.zero_grad()
+    loss = 0.5 * (w[0] - 3.0) ** 2 + 5.0 * (w[1] + 2.0) ** 2
+    loss.backward()
+    opt.step()
+    sched.step()
+
+print("PyTorch AdamW + CosineLR:", w.detach().numpy().round(3), "final lr:", round(sched.get_last_lr()[0], 5))`}
+  exerciseStarter={`import math
+
+def cosine_warmup_lr(step, total_steps, warmup_steps, max_lr, min_lr=0.0):
+    # TODO: linear warmup for step < warmup_steps, then cosine decay from max_lr to min_lr
+    return max_lr`}
+  exerciseTests={`assert abs(cosine_warmup_lr(0, 100, 10, 1e-3) - 0.0) < 1e-9
+assert abs(cosine_warmup_lr(5, 100, 10, 1e-3) - 5e-4) < 1e-9
+assert abs(cosine_warmup_lr(10, 100, 10, 1e-3) - 1e-3) < 1e-9
+assert abs(cosine_warmup_lr(100, 100, 10, 1e-3, 1e-4) - 1e-4) < 1e-9`}
+  exerciseSolution={`import math
+
+def cosine_warmup_lr(step, total_steps, warmup_steps, max_lr, min_lr=0.0):
+    if step < warmup_steps:
+        return max_lr * (step / max(1, warmup_steps))
+    progress = min(1.0, (step - warmup_steps) / max(1, total_steps - warmup_steps))
+    cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+    return min_lr + (max_lr - min_lr) * cosine`}
+  hint1="During warmup (step < warmup_steps), scale linearly: max_lr * (step / warmup_steps)."
+  hint2="After warmup, compute progress in [0, 1] and interpolate with 0.5 * (1 + math.cos(math.pi * progress))."
+/>
+
+<Quiz
+  lessonId="deep-learning/05-optimizers"
+  questions={[
+    {
+      id: "opt-q1",
+      type: "mcq",
+      prompt: "What key fix makes AdamW generalize better than L2-penalized Adam?",
+      options: [
+        "AdamW removes momentum completely",
+        "AdamW applies weight decay directly to weights outside the adaptive gradient variance scaling",
+        "AdamW uses a fixed learning rate of 1.0",
+        "AdamW doubles batch size automatically"
+      ],
+      answer: 1,
+      explanation: "Decoupling weight decay prevents adaptive second-moment scaling from shrinking regularization unevenly across weights."
+    },
+    {
+      id: "opt-q2",
+      type: "fill-blank",
+      prompt: "Ramping learning rate gently from 0 up to peak LR over the initial few percent of training steps is called ______.",
+      answer: "warmup",
+      acceptableAnswers: ["warmup", "linear warmup", "warm-up"],
+      explanation: "Warmup stabilizes early Adam second-moment estimates and Transformer LayerNorm gradients."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "AdamW decouples weight decay from adaptive gradient normalization.",
+    "Linear warmup protects early steps while second-moment estimates stabilize.",
+    "Cosine decay smoothly lowers step sizes so weights settle cleanly into wide minima."
+  ]}
+/>
+

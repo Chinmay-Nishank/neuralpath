@@ -1,0 +1,143 @@
+---
+title: "Autoregressive Decoders (GPT): Causal Masking, KV Caching & Sampling"
+module: "nlp-transformers"
+moduleOrder: 5
+order: 7
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 20
+prerequisites: ["nlp-transformers/05-transformer-architecture"]
+objectives:
+  - "Trace next-token autoregressive training with shifted targets and causal masks"
+  - "Understand why KV caching turns O(T^2) token-by-token generation into O(T) work per step"
+  - "Implement Temperature, Top-k, and Nucleus (Top-p) decoding strategies"
+summary: "Go inside GPT decoders: causal next-token prediction, KV-cache acceleration, and controlled stochastic text sampling."
+tags: ["gpt", "decoder", "kv-cache", "sampling", "top-p", "temperature"]
+vizTypes: ["attention"]
+colabNotebook: "notebooks/nlp-transformers/gpt-decoder.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Predicting One Token at a Time—Efficiently
+
+GPT models train on raw text by predicting token $t+1$ from tokens $1 \dots t$ across *every* position in parallel using a triangular causal mask.
+
+At generation time, generating 500 new tokens naively recomputes Keys and Values for the entire growing prompt 500 times! Because causal masking guarantees earlier token Keys and Values **never depend on future tokens**, **KV Caching** stores past $(K, V)$ tensors in GPU memory so each new token computes attention using only its single new Query vector!
+
+## Interactive Lab: Causal Masking & Temperature Scaling
+
+Enable **Causal Mask** below and adjust **Scaling Temperature $\tau$** to see how temperature reshapes probability sharpness.
+
+<Viz type="attention" defaultPreset="causal-code" />
+
+<Callout type="math-deep-dive" title="Temperature, Top-k & Top-p (Nucleus) Sampling">
+  Given logits $z \in \mathbb{R}^V$ and temperature $\tau > 0$:
+  <Math tex="p_i = \text{softmax}(z / \tau)_i" display />
+  - $\tau < 1$: sharpens toward greedy argmax (factual/code).
+  - **Top-k:** keeps only the $k$ highest-logit tokens.
+  - **Top-p (Nucleus):** keeps the smallest sorted set whose cumulative probability reaches $p$ (e.g., $0.9$), dynamically widening choices when uncertain and narrowing when confident.
+</Callout>
+
+## Runnable Code: Sampling (Temperature / Top-k / Top-p) & KV-Cache Demo
+
+<CodeRunner
+  title="Implementing Temperature, Top-k, Top-p Sampling & KV Cache Step"
+  code={`import numpy as np
+
+def sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0):
+    scaled = np.asarray(logits, dtype=float) / max(1e-6, temperature)
+    if top_k > 0:
+        thresh = np.sort(scaled)[-top_k]
+        scaled = np.where(scaled < thresh, -1e9, scaled)
+    shifted = scaled - np.max(scaled)
+    probs = np.exp(shifted)
+    probs /= np.sum(probs)
+    if top_p < 1.0:
+        idx = np.argsort(probs)[::-1]
+        cum = np.cumsum(probs[idx])
+        remove = cum > top_p
+        remove[0] = False  # Always keep top token
+        keep_mask = np.ones_like(probs, dtype=bool)
+        keep_mask[idx[remove]] = False
+        probs = np.where(keep_mask, probs, 0.0)
+        probs /= np.sum(probs)
+    return probs
+
+logits = np.array([4.0, 2.5, 1.0, -0.5, -2.0])
+print("Temp=0.5 :", sample_probs(logits, temperature=0.5).round(3))
+print("Top-p=0.8:", sample_probs(logits, top_p=0.8).round(3))`}
+  libraryCode={`import torch
+import torch.nn.functional as F
+
+# Demonstrating KV-cache equivalence on step t
+torch.manual_seed(0)
+k_past = torch.randn(1, 2, 5, 8)  # cached keys for first 5 tokens
+v_past = torch.randn(1, 2, 5, 8)
+q_new = torch.randn(1, 2, 1, 8)
+k_new = torch.randn(1, 2, 1, 8)
+v_new = torch.randn(1, 2, 1, 8)
+
+k_all = torch.cat([k_past, k_new], dim=2)
+v_all = torch.cat([v_past, v_new], dim=2)
+out_step = F.scaled_dot_product_attention(q_new, k_all, v_all, is_causal=False)
+print("KV-cached decode output shape for new token:", tuple(out_step.shape))`}
+  exerciseStarter={`import numpy as np
+
+def apply_temperature(logits, temp):
+    # TODO: divide logits by temp and return stable softmax probabilities
+    return logits`}
+  exerciseTests={`logits = np.array([2.0, 1.0, 0.0])
+p_cold = apply_temperature(logits, 0.5)
+p_hot = apply_temperature(logits, 2.0)
+assert abs(p_cold.sum() - 1.0) < 1e-6
+assert p_cold[0] > p_hot[0]`}
+  exerciseSolution={`import numpy as np
+
+def apply_temperature(logits, temp):
+    scaled = np.asarray(logits, dtype=float) / max(1e-6, float(temp))
+    shifted = scaled - np.max(scaled)
+    exps = np.exp(shifted)
+    return exps / np.sum(exps)`}
+  hint1="Divide logits by temp before subtracting max for softmax."
+  hint2="Normalize exponentials so probabilities sum to 1."
+/>
+
+<Quiz
+  lessonId="nlp-transformers/07-gpt-decoders"
+  questions={[
+    {
+      id: "gpt-q1",
+      type: "mcq",
+      prompt: "Why does KV caching work cleanly in causal decoder LLMs without losing accuracy?",
+      options: [
+        "Tokens only depend on themselves",
+        "Causal masking ensures earlier token Keys and Values never change when future tokens are appended",
+        "KV cache compresses weights to 1-bit",
+        "Softmax is linear"
+      ],
+      answer: 1,
+      explanation: "Because past tokens cannot attend forward, their K and V projections remain invariant during generation."
+    },
+    {
+      id: "gpt-q2",
+      type: "fill-blank",
+      prompt: "Nucleus sampling is also known as ______ sampling because it truncates the vocabulary at cumulative probability p.",
+      answer: "top-p",
+      acceptableAnswers: ["top-p", "top p", "top_p"],
+      explanation: "Top-p dynamically selects the smallest high-probability nucleus summing to p."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Autoregressive training shifts targets by 1 token and applies causal masking for parallel next-token loss.",
+    "KV caching reuses prior Key/Value tensors so decoding scales linearly rather than quadratically per step.",
+    "Combine low temperature and top-p filtering for grounded reasoning; raise temperature for creative exploration."
+  ]}
+/>
+

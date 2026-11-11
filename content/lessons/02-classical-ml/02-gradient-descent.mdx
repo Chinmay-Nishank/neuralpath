@@ -1,0 +1,208 @@
+---
+title: "Gradient Descent & Loss Surfaces"
+module: "classical-ml"
+moduleOrder: 2
+order: 2
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["foundations/01-what-is-a-model"]
+objectives:
+  - "Interpret the gradient as the direction of steepest ascent on a loss surface"
+  - "Predict how step size (learning rate) causes slow convergence, oscillation, or divergence"
+  - "Compare Vanilla SGD, Momentum, RMSProp, and Adam on ill-conditioned ravines"
+  - "Implement gradient descent and Momentum from scratch in NumPy and inspect SGDRegressor"
+summary: "Master the optimization engine behind nearly all modern ML and deep learning, from anisotropic ravines to adaptive momentum updates."
+tags: ["gradient-descent", "optimizers", "momentum", "adam", "loss-surface"]
+vizTypes: ["gradient-descent"]
+colabNotebook: "notebooks/classical-ml/gradient-descent.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Walking Downhill in Fog
+
+Imagine standing blindfolded on a hilly terrain where altitude represents model error. You cannot see the valley floor miles away, but your feet immediately feel which way the ground slopes right under you.
+
+<GlossaryTerm term="Gradient Descent">Gradient descent</GlossaryTerm> works the exact same way. At current parameters $\theta_t$, the <GlossaryTerm term="Gradient">gradient</GlossaryTerm> $\nabla_\theta L(\theta_t)$ points strictly **uphill**—in the direction of steepest ascent. Stepping in the opposite direction moves you downhill:
+
+<Math tex="\theta_{t+1} = \theta_t - \eta \nabla_\theta L(\theta_t)" display />
+
+Here $\eta$ is the <GlossaryTerm term="Learning Rate">learning rate</GlossaryTerm>. Too small, and training crawls; too large, and steps overshoot across ravines and diverge.
+
+## Interactive Lab: 2D Contours & 3D Loss Surfaces
+
+Switch between **2D Contour** and **3D Surface**, press **Play**, and try increasing $\eta$ from `0.14` to `0.38` on the Anisotropic Bowl. Watch how plain SGD zigzags across steep walls while **Momentum** and **Adam** glide straight along the valley floor.
+
+<Viz type="gradient-descent" preset="bowl" />
+
+<Callout type="warning" title="Ill-Conditioned Ravines and Saddle Points">
+  Real neural loss surfaces are rarely round bowls. In narrow ravines, one axis has high curvature while another is nearly flat. Plain SGD must keep $\eta$ tiny to avoid exploding along the steep direction, making progress painfully slow along the shallow valley.
+</Callout>
+
+## From Vanilla SGD to Momentum and Adam
+
+Instead of trusting only the instantaneous gradient, modern optimizers accumulate history:
+
+1. **Momentum** maintains an exponentially weighted velocity $v_t = \beta v_{t-1} + (1 - \beta) g_t$. Opposite oscillations across ravine walls cancel out, while consistent slope along the valley adds up.
+2. **RMSProp** tracks squared gradient magnitude $s_t = \rho s_{t-1} + (1 - \rho) g_t^2$ and divides updates by $\sqrt{s_t} + \epsilon$, automatically shrinking steps along steep directions and boosting steps along flat ones.
+3. **Adam** combines both Momentum (first moment $m_t$) and adaptive scaling (second moment $v_t$) with bias correction for early iterations.
+
+<Callout type="math-deep-dive" title="Bias-Corrected Adam Update Equations">
+  At step $t \ge 1$ with gradient $g_t = \nabla_\theta L(\theta_{t-1})$, Adam computes:
+
+  <Math tex="m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \quad v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2" display />
+  <Math tex="\hat{m}_t = \frac{m_t}{1 - \beta_1^t}, \quad \hat{v}_t = \frac{v_t}{1 - \beta_2^t}" display />
+  <Math tex="\theta_t = \theta_{t-1} - \eta \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}" display />
+
+  Standard defaults $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$ work across a wide range of architectures, while **AdamW** decouples weight decay from the adaptive denominator.
+</Callout>
+
+## Runnable Code: Scratch NumPy vs. scikit-learn vs. Exercise
+
+<CodeRunner
+  title="Comparing SGD and Momentum on an Anisotropic Loss Surface"
+  code={`import numpy as np
+
+def loss_fn(theta):
+    # Steep along y (1.4), shallow along x (0.15)
+    return 0.15 * theta[0]**2 + 1.40 * theta[1]**2
+
+def grad_fn(theta):
+    return np.array([0.30 * theta[0], 2.80 * theta[1]])
+
+def run_optimizer(method="sgd", lr=0.25, steps=30):
+    theta = np.array([-2.2, 1.8], dtype=float)
+    v = np.zeros_like(theta)
+    for _ in range(steps):
+        g = grad_fn(theta)
+        if method == "momentum":
+            v = 0.85 * v + 0.15 * g
+            theta = theta - lr * 1.4 * v
+        else:
+            theta = theta - lr * g
+    return theta, loss_fn(theta)
+
+theta_sgd, loss_sgd = run_optimizer("sgd", lr=0.25)
+theta_mom, loss_mom = run_optimizer("momentum", lr=0.25)
+print(f"SGD after 30 steps:      theta={theta_sgd.round(4)}, loss={loss_sgd:.6f}")
+print(f"Momentum after 30 steps: theta={theta_mom.round(4)}, loss={loss_mom:.6f}")`}
+  libraryCode={`import numpy as np
+from sklearn.linear_model import SGDRegressor
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(42)
+X = rng.normal(size=(150, 2))
+X[:, 0] *= 50.0  # Unscaled feature creates an anisotropic ravine
+y = 2.0 * (X[:, 0] / 50.0) - 1.5 * X[:, 1] + 0.1 * rng.normal(size=150)
+
+# Scaling inputs makes the bowl spherical so SGD converges cleanly
+X_scaled = StandardScaler().fit_transform(X)
+reg = SGDRegressor(learning_rate="invscaling", eta0=0.05, max_iter=1000, random_state=42)
+reg.fit(X_scaled, y)
+
+print("Converged R^2 with StandardScaler + SGDRegressor:", round(reg.score(X_scaled, y), 4))
+print("Learned weights:", reg.coef_.round(3))`}
+  colabCode={`import torch
+
+# PyTorch optimizer comparison on the Rosenbrock banana valley
+def rosenbrock(xy):
+    x, y = xy[0], xy[1]
+    return (1.0 - x) ** 2 + 10.0 * (y - x ** 2) ** 2
+
+for name, opt_fn in [
+    ("SGD", lambda p: torch.optim.SGD([p], lr=0.005)),
+    ("Adam", lambda p: torch.optim.Adam([p], lr=0.05)),
+]:
+    params = torch.tensor([-1.5, 2.0], requires_grad=True)
+    opt = opt_fn(params)
+    for _ in range(300):
+        opt.zero_grad()
+        loss = rosenbrock(params)
+        loss.backward()
+        opt.step()
+    print(f"{name:5s} -> params={params.detach().numpy().round(3)}, loss={loss.item():.5f}")`}
+  exerciseStarter={`import numpy as np
+
+def gradient_descent_step(theta, grad, lr):
+    # TODO: return updated parameter vector theta - lr * grad
+    return None
+
+def minimize_quadratic(start, lr=0.1, steps=50):
+    # Minimize L(theta) = 0.5 * sum(theta ** 2), whose gradient is theta
+    theta = np.array(start, dtype=float)
+    for _ in range(steps):
+        grad = theta
+        theta = gradient_descent_step(theta, grad, lr)
+    return theta`}
+  exerciseTests={`out_step = gradient_descent_step(np.array([2.0, -4.0]), np.array([1.0, -2.0]), 0.5)
+assert np.allclose(out_step, np.array([1.5, -3.0])), f"Unexpected step: {out_step}"
+final = minimize_quadratic([3.0, -2.0], lr=0.2, steps=60)
+assert np.linalg.norm(final) < 1e-4, f"Expected convergence near zero, got {final}"`}
+  exerciseSolution={`import numpy as np
+
+def gradient_descent_step(theta, grad, lr):
+    return np.asarray(theta, dtype=float) - lr * np.asarray(grad, dtype=float)
+
+def minimize_quadratic(start, lr=0.1, steps=50):
+    theta = np.array(start, dtype=float)
+    for _ in range(steps):
+        grad = theta
+        theta = gradient_descent_step(theta, grad, lr)
+    return theta`}
+  hint1="Remember that gradient points uphill, so we subtract lr * grad."
+  hint2="In minimize_quadratic, each step shrinks theta by a factor of (1 - lr)."
+/>
+
+<Quiz
+  lessonId="classical-ml/02-gradient-descent"
+  questions={[
+    {
+      id: "gd-q1",
+      type: "mcq",
+      prompt: "If your training loss suddenly spikes to NaN or oscillates upward after increasing the learning rate, what happened?",
+      options: [
+        "The model reached a global minimum too quickly",
+        "Steps overshot across the valley walls and diverged",
+        "Momentum decayed to zero",
+        "Feature scaling removed variance"
+      ],
+      answer: 1,
+      explanation: "When η exceeds 2 / L_max (twice the inverse maximum curvature), steps land higher up the opposite wall on every iteration."
+    },
+    {
+      id: "gd-q2",
+      type: "mcq",
+      prompt: "Why does Momentum accelerate convergence inside narrow ravines?",
+      options: [
+        "It increases the dataset size dynamically",
+        "Opposite gradients across ravine walls cancel while consistent valley slopes accumulate",
+        "It replaces the gradient with a second-order Hessian inverse",
+        "It drops random parameters during each update"
+      ],
+      answer: 1,
+      explanation: "Exponential moving averaging damps high-frequency sign-flipping oscillations and builds speed along low-curvature directions."
+    },
+    {
+      id: "gd-q3",
+      type: "code-completion",
+      prompt: "Complete the standard gradient descent update line:",
+      codeSnippet: "theta = theta _____",
+      answer: "- lr * grad",
+      acceptableAnswers: ["- lr * grad", "- (lr * grad)", "- eta * grad"],
+      explanation: "Subtracting the learning rate times the gradient moves parameters downhill."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Gradients point uphill; subtracting η∇L(θ) moves downhill toward lower loss.",
+    "Feature scaling prevents narrow ravines, allowing much larger safe learning rates.",
+    "Momentum dampens oscillation; RMSProp and Adam adapt step sizes per parameter coordinate."
+  ]}
+/>
+

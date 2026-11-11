@@ -1,0 +1,123 @@
+---
+title: "Loss Functions: MSE, Cross-Entropy, Huber & InfoNCE Contrastive Loss"
+module: "deep-learning"
+moduleOrder: 3
+order: 3
+level: "practitioner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 17
+prerequisites: ["foundations/07-probability-statistics"]
+objectives:
+  - "Select regression losses (MSE, MAE, Huber) based on outlier sensitivity"
+  - "Compute numerically stable log-sum-exp softmax cross-entropy for multi-class problems"
+  - "Understand contrastive InfoNCE loss used in CLIP, SigLIP, and sentence embeddings"
+summary: "Match model objectives to problem geometry—from robust Huber regression to multi-class cross-entropy and contrastive InfoNCE."
+tags: ["loss-functions", "cross-entropy", "huber", "infonce", "contrastive"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Your Model Optimizes Exactly What You Measure
+
+If you train a model with MSE on noisy housing data containing a 100x typo, squared error pulls the entire model toward the outlier. **Huber loss** behaves quadratically near zero (smooth gradients) and linearly far out (robust to outliers). Meanwhile, multi-modal systems like CLIP train with **InfoNCE** to pull matching `(image, text)` pairs together and push mismatched pairs apart.
+
+<Viz type="roc-pr" />
+
+<Callout type="math-deep-dive" title="Numerically Stable Log-Softmax & InfoNCE">
+  Evaluating $\log(\text{softmax}(z)_c)$ directly can underflow `exp(-1000) == 0`. Subtracting $m = \max_j z_j$ yields the exact **log-sum-exp** identity:
+
+  <Math tex="-\log p_c = -z_c + m + \log \sum_j e^{z_j - m}" display />
+
+  **InfoNCE** applies this exact multi-class cross-entropy across similarity scores $s_{ij} = \text{cos}(u_i, v_j) / \tau$ inside a batch where the diagonal $(i, i)$ is the positive target!
+</Callout>
+
+## Runnable Code: Stable Cross-Entropy & InfoNCE in NumPy vs. PyTorch
+
+<CodeRunner
+  title="Log-Sum-Exp Cross-Entropy & Contrastive InfoNCE"
+  code={`import numpy as np
+
+def cross_entropy_logits(logits, targets):
+    m = np.max(logits, axis=-1, keepdims=True)
+    log_probs = (logits - m) - np.log(np.sum(np.exp(logits - m), axis=-1, keepdims=True))
+    n = len(targets)
+    return float(-np.mean(log_probs[np.arange(n), targets]))
+
+logits = np.array([[2.5, 0.3, -1.2], [0.1, 1.9, 0.2]])
+targets = np.array([0, 1])
+print("Stable Cross-Entropy Loss:", round(cross_entropy_logits(logits, targets), 4))
+
+# Toy InfoNCE on batch of 3 matching pairs
+emb_a = np.eye(3)
+emb_b = np.array([[0.9, 0.1, 0.0], [0.1, 0.85, 0.05], [0.0, 0.2, 0.9]])
+sim_logits = (emb_a @ emb_b.T) / 0.1
+print("Contrastive InfoNCE Loss:", round(cross_entropy_logits(sim_logits, np.arange(3)), 4))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+logits = torch.tensor([[2.5, 0.3, -1.2], [0.1, 1.9, 0.2]])
+targets = torch.tensor([0, 1])
+
+ce = nn.CrossEntropyLoss()(logits, targets)
+huber = nn.HuberLoss(delta=1.0)(torch.tensor([1.0, 10.0]), torch.tensor([1.2, 2.0]))
+print("PyTorch CrossEntropy:", round(ce.item(), 4))
+print("PyTorch HuberLoss   :", round(huber.item(), 4))`}
+  exerciseStarter={`import numpy as np
+
+def huber_loss(y_true, y_pred, delta=1.0):
+    # TODO: 0.5 * e^2 when |e| <= delta, else delta * (|e| - 0.5 * delta); return mean
+    return 0.0`}
+  exerciseTests={`yt = np.array([0.0, 0.0])
+yp = np.array([0.5, 3.0])
+# For |e|=0.5 <= 1.0 -> 0.5 * 0.25 = 0.125; for |e|=3.0 -> 1.0 * (3.0 - 0.5) = 2.5; mean = 1.3125
+assert abs(huber_loss(yt, yp, delta=1.0) - 1.3125) < 1e-6`}
+  exerciseSolution={`import numpy as np
+
+def huber_loss(y_true, y_pred, delta=1.0):
+    err = np.abs(np.asarray(y_true, dtype=float) - np.asarray(y_pred, dtype=float))
+    quad = 0.5 * err ** 2
+    lin = delta * (err - 0.5 * delta)
+    return float(np.mean(np.where(err <= delta, quad, lin)))`}
+  hint1="Compute absolute residual err = np.abs(y_true - y_pred)."
+  hint2="Blend quadratic and linear branches with np.where(err <= delta, quad, lin)."
+/>
+
+<Quiz
+  lessonId="deep-learning/03-loss-functions"
+  questions={[
+    {
+      id: "loss-q1",
+      type: "mcq",
+      prompt: "Why do PyTorch CrossEntropyLoss and BCEWithLogitsLoss expect raw unnormalized logits instead of probabilities?",
+      options: [
+        "They run faster on CPU only",
+        "Combining log-softmax internally with the log-sum-exp trick prevents numerical overflow and underflow",
+        "Softmax cannot be differentiated",
+        "Logits are always integers"
+      ],
+      answer: 1,
+      explanation: "Fusing log and softmax via log-sum-exp preserves floating-point precision even for extreme logits."
+    },
+    {
+      id: "loss-q2",
+      type: "fill-blank",
+      prompt: "The loss function that acts quadratic for small errors and linear for large errors to resist outliers is called ______ loss.",
+      answer: "Huber",
+      acceptableAnswers: ["huber", "smooth l1"],
+      explanation: "Huber loss (Smooth L1) combines MSE smoothness near zero with MAE outlier robustness."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Pass raw logits—never post-softmax probabilities—to CrossEntropyLoss.",
+    "Choose Huber loss over MSE whenever tabular or sensor targets contain heavy outliers.",
+    "Contrastive losses like InfoNCE frame retrieval and representation alignment as in-batch classification."
+  ]}
+/>
+

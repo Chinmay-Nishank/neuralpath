@@ -1,0 +1,121 @@
+---
+title: "Production Telemetry: Tracing, Latency P99, Token Economics & Guardrails"
+module: "mlops"
+moduleOrder: 8
+order: 4
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["mlops/02-model-serving-batching", "generative-ai/08-agents-tool-use-mcp"]
+objectives:
+  - "Instrument LLM & agent pipelines with OpenTelemetry-style spans (retrieval, rerank, prompt, generation, tool)"
+  - "Monitor tail latency (P95/P99) rather than misleading averages"
+  - "Enforce token budgets, PII redaction, and schema/safety guardrails on live traffic"
+summary: "Monitor production ML & AI apps with end-to-end execution traces, P99 tail latency tracking, token budgets, and runtime guardrails."
+tags: ["observability", "telemetry", "p99", "guardrails", "tracing"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Why Mean Latency Lies in Production
+
+Suppose 99% of your requests finish in `80 ms`, while 1% stall for `12,000 ms` on cold retries. Your mean latency looks great at `199 ms`—yet **1 in every 100 users waits 12 seconds** (and multi-step agents hitting 10 sequential calls trigger a slow outlier nearly 10% of the time!).
+
+Production observability logs structured traces across every span (`embed -> vector_search -> rerank -> llm_call -> tool_exec`), alerting on **P95/P99 latency**, **cost per solved task**, and **guardrail trigger rates**.
+
+<Viz type="roc-pr" />
+
+<Callout type="tip" title="Deterministic Fast Guardrails Before Slow LLM Judges">
+  Run millisecond regex/keyword/schema checks (PII masks, max token caps, JSON schema validation) synchronously on the request path, while running deeper LLM-as-a-Judge audits asynchronously on sampled production traces.
+</Callout>
+
+<Callout type="math-deep-dive" title="Tail Latency Amplification in Fan-Out Pipelines">
+  If an agent invokes $k$ parallel sub-calls each with independent P99 tail probability $0.01$, the chance that *at least one* call triggers a tail stall is:
+  <Math tex="P(\text{at least 1 slow}) = 1 - (1 - 0.01)^k" display />
+  At $k = 20$ parallel retrievals, nearly $18.2\%$ of user turns hit a tail outlier unless hedged timeouts or tight P99 SLAs are enforced!
+</Callout>
+
+## Runnable Code: Percentile Latency Calculator & PII/Budget Guardrail
+
+<CodeRunner
+  title="Computing P50/P95/P99 Tail Latencies & Enforcing Request Guardrails"
+  code={`import numpy as np, re
+
+latencies_ms = np.array([42, 48, 51, 55, 60, 62, 65, 70, 74, 88, 120, 480, 950])
+p50, p95, p99 = np.percentile(latencies_ms, [50, 95, 99])
+print(f"Mean={latencies_ms.mean():.1f}ms | P50={p50:.1f}ms | P95={p95:.1f}ms | P99={p99:.1f}ms")
+
+def redact_pii(text):
+    text = re.sub(r"[\\w.+-]+@[\\w-]+\\.[\\w.-]+", "[EMAIL_REDACTED]", text)
+    text = re.sub(r"\\b\\d{3}-\\d{2}-\\d{4}\\b", "[SSN_REDACTED]", text)
+    return text
+
+print("Sanitized log:", redact_pii("User alice@example.com submitted SSN 123-45-6789."))`}
+  libraryCode={`import json, time
+
+def trace_span(name, fn, **meta):
+    t0 = time.perf_counter()
+    res = fn()
+    return {
+        "span": name,
+        "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+        "meta": meta,
+        "ok": res is not None,
+    }
+
+span = trace_span("vector_retrieval", lambda: ["doc_1", "doc_2"], top_k=2, index="kb_v3")
+print("Trace event:", json.dumps(span))`}
+  exerciseStarter={`import numpy as np
+
+def compute_p99(samples_ms):
+    # TODO: return 99th percentile latency as float
+    return 0.0`}
+  exerciseTests={`arr = np.arange(1, 101, dtype=float)
+assert abs(compute_p99(arr) - 99.01) < 0.05`}
+  exerciseSolution={`import numpy as np
+
+def compute_p99(samples_ms):
+    return float(np.percentile(np.asarray(samples_ms, dtype=float), 99))`}
+  hint1="Use np.percentile(samples_ms, 99)."
+  hint2="Cast output to Python float."
+/>
+
+<Quiz
+  lessonId="mlops/04-monitoring-observability"
+  questions={[
+    {
+      id: "obs-q1",
+      type: "mcq",
+      prompt: "Why do production latency SLAs target P95 or P99 instead of mean latency?",
+      options: [
+        "Means cannot be computed in Python",
+        "Averages mask severe slow outliers affecting real users and multi-call agent chains",
+        "P99 is always smaller than the mean",
+        "GPUs only report P99"
+      ],
+      answer: 1,
+      explanation: "Tail percentiles expose worst-case user experiences hidden by fast typical queries."
+    },
+    {
+      id: "obs-q2",
+      type: "fill-blank",
+      prompt: "Before storing user prompts in telemetry traces, automated regex or classifier filters mask sensitive emails/IDs via ______ redaction.",
+      answer: "PII",
+      acceptableAnswers: ["pii", "personally identifiable information"],
+      explanation: "Redacting PII keeps observability logs compliant and secure."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Instrument retrieval, reranking, LLM generation, and tool calls as separate trace spans.",
+    "Monitor P95/P99 latency, error rates, and token cost per resolved task—never averages alone.",
+    "Redact PII before logging traces and run synchronous lightweight guardrails on request boundaries."
+  ]}
+/>
+

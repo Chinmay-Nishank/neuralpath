@@ -1,0 +1,141 @@
+---
+title: "Feature Engineering, Scaling, Encoding & Leakage Prevention"
+module: "classical-ml"
+moduleOrder: 2
+order: 6
+level: "practitioner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 16
+prerequisites: ["classical-ml/05-cross-validation-metrics"]
+objectives:
+  - "Standardize numeric features, encode categoricals safely, and craft domain ratios"
+  - "Prevent data leakage inside cross-validation using scikit-learn Pipelines and ColumnTransformer"
+  - "Choose between One-Hot, Ordinal, and Target encoding appropriately"
+summary: "Build leak-free tabular preprocessing pipelines combining scaling, categorical encoding, and domain feature ratios."
+tags: ["feature-engineering", "pipelines", "data-leakage", "encoding", "scaling"]
+vizTypes: ["decision-boundary"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Better Features Often Beat Bigger Models
+
+In tabular machine learning, informative domain ratios (like `debt / income` or `price / area`) often boost accuracy more than switching algorithms. Equally critical: **<GlossaryTerm term="Data Leakage">data leakage</GlossaryTerm>** silently invalidates offline validation whenever preprocessing inspects test rows before splitting.
+
+<Callout type="warning" title="Golden Rule of Leak-Free Pipelines">
+  Wrap every scaler, imputer, encoder, and selector inside `sklearn.pipeline.Pipeline` BEFORE calling `cross_val_score` or `fit`. That guarantees statistics are computed strictly per training fold.
+</Callout>
+
+## Visual Check: How Feature Scaling Reshapes Geometry
+
+Explore how models like **k-Nearest Neighbors** and **RBF SVM** rely directly on Euclidean distances—meaning an unscaled feature in $[0, 100000]$ completely swamps a feature in $[0, 1]$.
+
+<Viz type="decision-boundary" defaultModel="knn" />
+
+<Callout type="math-deep-dive" title="Standardization vs. Min-Max vs. Robust Scaling">
+  - **StandardScaler:** $z = (x - \mu) / \sigma$ (zero mean, unit variance; ideal for linear models, SVMs, neural nets).
+  - **RobustScaler:** uses median and IQR $(Q_{75} - Q_{25})$ when heavy outliers exist.
+  - **One-Hot Encoding:** maps $K$ categories into orthogonal binary indicators (`handle_unknown="ignore"` protects inference from unseen categories).
+</Callout>
+
+## Runnable Code: Manual Standardization vs. ColumnTransformer Pipeline
+
+<CodeRunner
+  title="Leak-Free Preprocessing with ColumnTransformer & Pipeline"
+  code={`import numpy as np
+
+# Fit scaler ONLY on train split, then transform both train and test
+X_train = np.array([[100.0, 2.0], [200.0, 4.0], [150.0, 3.0]])
+X_test = np.array([[300.0, 5.0]])
+
+mean = X_train.mean(axis=0)
+std = X_train.std(axis=0)
+
+X_train_scaled = (X_train - mean) / std
+X_test_scaled = (X_test - mean) / std  # Uses train mean & std!
+
+print("Train scaled mean:", X_train_scaled.mean(axis=0).round(4))
+print("Test scaled using train stats:", X_test_scaled.round(3))`}
+  libraryCode={`import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+df = pd.read_csv("/datasets/housing_mini.csv")
+df["size_bucket"] = pd.cut(df["area_sqft"], bins=[0, 1400, 2200, 5000], labels=["sm", "md", "lg"]).astype(str)
+
+num_cols = ["area_sqft", "bedrooms", "age_years", "distance_km"]
+cat_cols = ["size_bucket"]
+
+pre = ColumnTransformer([
+    ("num", Pipeline([("imp", SimpleImputer(strategy="median")), ("sc", StandardScaler())]), num_cols),
+    ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
+])
+
+pipe = Pipeline([("pre", pre), ("model", Ridge(alpha=1.0))])
+r2 = cross_val_score(pipe, df[num_cols + cat_cols], df["price_k"], cv=4, scoring="r2")
+print("Leak-free 4-fold CV R^2:", round(float(r2.mean()), 3))`}
+  exerciseStarter={`import numpy as np
+
+def fit_transform_minmax(X_train, X_test):
+    # TODO: scale features to [0, 1] using ONLY X_train min and max
+    return X_train, X_test`}
+  exerciseTests={`tr = np.array([[10.0, 0.0], [20.0, 10.0]])
+te = np.array([[15.0, 20.0]])
+tr_s, te_s = fit_transform_minmax(tr, te)
+assert np.allclose(tr_s, [[0.0, 0.0], [1.0, 1.0]])
+assert np.allclose(te_s, [[0.5, 2.0]])`}
+  exerciseSolution={`import numpy as np
+
+def fit_transform_minmax(X_train, X_test):
+    X_train = np.asarray(X_train, dtype=float)
+    X_test = np.asarray(X_test, dtype=float)
+    mn = X_train.min(axis=0)
+    span = np.maximum(X_train.max(axis=0) - mn, 1e-12)
+    return (X_train - mn) / span, (X_test - mn) / span`}
+  hint1="Compute min and max with axis=0 on X_train only."
+  hint2="Apply the exact same (X - mn) / (mx - mn) transform to X_test."
+/>
+
+<Quiz
+  lessonId="classical-ml/06-feature-engineering"
+  questions={[
+    {
+      id: "fe-q1",
+      type: "mcq",
+      prompt: "Which practice causes subtle data leakage during k-fold cross-validation?",
+      options: [
+        "Putting StandardScaler inside a scikit-learn Pipeline",
+        "Computing StandardScaler().fit_transform(X) on the full dataset before calling cross_val_score",
+        "Passing handle_unknown='ignore' to OneHotEncoder",
+        "Creating domain ratio features per row independently"
+      ],
+      answer: 1,
+      explanation: "Fitting a scaler before splitting leaks validation-fold means and standard deviations into training."
+    },
+    {
+      id: "fe-q2",
+      type: "code-completion",
+      prompt: "Prevent crashes when production sees a rare unseen category in OneHotEncoder:",
+      codeSnippet: "OneHotEncoder(handle_unknown=_____)",
+      answer: "\"ignore\"",
+      acceptableAnswers: ["\"ignore\"", "'ignore'"],
+      explanation: "handle_unknown='ignore' outputs all zeros for unseen categories instead of throwing ValueError."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Distance-based and gradient-based models require consistent feature scaling.",
+    "Always wrap preprocessing inside Pipeline/ColumnTransformer so CV folds remain strictly isolated.",
+    "Always test domain ratios and interactions against leak-free cross-validation."
+  ]}
+/>
+

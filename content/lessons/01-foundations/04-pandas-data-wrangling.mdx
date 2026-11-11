@@ -1,0 +1,116 @@
+---
+title: "Pandas & Exploratory Data Analysis: Cleaning & Inspecting Data"
+module: "foundations"
+moduleOrder: 1
+order: 4
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 15
+prerequisites: ["foundations/03-numpy-arrays"]
+objectives:
+  - "Load tabular datasets into DataFrames and inspect missingness, types, and summary distributions"
+  - "Perform vectorized filtering, groupby aggregations, and clean feature derivations"
+  - "Spot outliers and target correlations before fitting any model"
+summary: "Use Pandas to audit real tabular data, handle missing values cleanly, and compute grouped statistics prior to model training."
+tags: ["pandas", "eda", "tabular-data", "cleaning"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Garbage In, Garbage Out
+
+Before reaching for XGBoost or neural networks, experienced practitioners spend time looking closely at distributions, missing values, and impossible measurements. A single corrupted column or unit mismatch ruins downstream generalization.
+
+## Interactive Check: Inspecting Class Separability & Metrics
+
+Even clean tabular features depend on how well distributions separate across target groups and thresholds:
+
+<Viz type="roc-pr" />
+
+<Callout type="tip" title="Never Impute Using Whole-Dataset Statistics">
+  Computing `df["age"].fillna(df["age"].mean())` across the entire file leaks test-set distribution statistics into training. Compute fill values only on the training split.
+</Callout>
+
+<Callout type="math-deep-dive" title="Why Median Imputation Resists Skewed Outliers">
+  For heavy-tailed features (income, latency, house prices), a single extreme outlier drags the arithmetic mean $\frac{1}{N}\sum x_i$ sharply upward, whereas the sample median (50th percentile) has a 50% breakdown point.
+</Callout>
+
+## Runnable Code: Auditing the Bundled Housing Dataset
+
+<CodeRunner
+  title="Exploratory Data Analysis with Pandas"
+  code={`import pandas as pd
+
+df = pd.read_csv("/datasets/housing_mini.csv")
+print("Shape:", df.shape)
+print("Missing values per column:\n", df.isna().sum().to_dict())
+
+# Feature derivation: price per square foot
+df["price_per_sqft"] = (df["price_k"] * 1000) / df["area_sqft"]
+
+summary = df.groupby("bedrooms")[["area_sqft", "price_k", "price_per_sqft"]].mean().round(1)
+print("\nAverage metrics by bedrooms:\n", summary)
+print("\nCorrelations with price_k:\n", df.corr(numeric_only=True)["price_k"].sort_values(ascending=False).round(3))`}
+  libraryCode={`import pandas as pd
+from sklearn.impute import SimpleImputer
+
+raw = pd.DataFrame({
+    "sqft": [900.0, None, 1500.0, 2100.0],
+    "price_k": [220.0, 280.0, 360.0, 510.0],
+})
+imputer = SimpleImputer(strategy="median")
+raw[["sqft"]] = imputer.fit_transform(raw[["sqft"]])
+print("Imputed median sqft:", imputer.statistics_[0])
+print(raw)`}
+  exerciseStarter={`import pandas as pd
+
+def summarize_species(csv_path):
+    # TODO: read iris_mini.csv and return mean petal_length per species as a dict
+    return {}`}
+  exerciseTests={`res = summarize_species("/datasets/iris_mini.csv")
+assert abs(res["setosa"] - 1.466666) < 0.05
+assert res["virginica"] > res["versicolor"] > res["setosa"]`}
+  exerciseSolution={`import pandas as pd
+
+def summarize_species(csv_path):
+    df = pd.read_csv(csv_path)
+    return df.groupby("species")["petal_length"].mean().to_dict()`}
+  hint1="Load the CSV with pd.read_csv(csv_path)."
+  hint2="Use df.groupby('species')['petal_length'].mean().to_dict()."
+/>
+
+<Quiz
+  lessonId="foundations/04-pandas-data-wrangling"
+  questions={[
+    {
+      id: "pd-q1",
+      type: "mcq",
+      prompt: "When imputing missing values in a skewed numerical feature like household income, which statistic is usually safer than the mean?",
+      options: ["Maximum", "Median", "Variance", "Sum"],
+      answer: 1,
+      explanation: "The median is robust to extreme high-income outliers that distort the arithmetic mean."
+    },
+    {
+      id: "pd-q2",
+      type: "code-completion",
+      prompt: "Compute the mean of column 'price' grouped by 'bedrooms' in DataFrame df:",
+      codeSnippet: "df._____('bedrooms')['price'].mean()",
+      answer: "groupby",
+      acceptableAnswers: ["groupby"],
+      explanation: "DataFrame.groupby splits rows into buckets before applying aggregations."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Inspect shape, dtypes, missingness, and summary percentiles before writing any modeling code.",
+    "Use groupby() and correlation tables to verify domain sanity and discover engineered ratios.",
+    "Always fit imputers strictly on the training split to prevent data leakage."
+  ]}
+/>
+

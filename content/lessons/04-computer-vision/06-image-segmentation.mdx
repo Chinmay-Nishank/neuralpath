@@ -1,0 +1,137 @@
+---
+title: "Semantic, Instance & Panoptic Segmentation: U-Net & SAM"
+module: "computer-vision"
+moduleOrder: 4
+order: 6
+level: "practitioner"
+paths: ["practitioner", "researcher"]
+estimatedMinutes: 17
+prerequisites: ["computer-vision/05-object-detection"]
+objectives:
+  - "Distinguish semantic segmentation (per-pixel class) from instance and panoptic segmentation"
+  - "Explain why U-Net skip connections fuse deep semantic context with sharp spatial borders"
+  - "Compute Dice coefficient and understand promptable segmentation in SAM"
+summary: "Move from bounding boxes to exact pixel masks using U-Net encoder-decoder skip connections, Dice loss, and promptable SAM."
+tags: ["segmentation", "unet", "dice-loss", "sam", "pixel-masks"]
+vizTypes: ["convolution"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Pixel-Precise Boundaries Need High-Resolution Skip Highways
+
+Bounding boxes enclose background clutter on irregular objects like cells, roads, or tumors. **Segmentation** classifies every pixel `(H, W)`:
+- **Semantic Segmentation:** tags every pixel with a category (`road`, `person`) without separating two adjacent people.
+- **Instance Segmentation:** assigns separate masks per individual object.
+- **Panoptic Segmentation:** unifies both background stuff and countable things.
+
+Standard CNN encoders downsample images spatially to capture context, losing crisp borders. **U-Net** fixes this by concatenating high-resolution encoder feature maps directly into the decoder upsampling stages!
+
+<Viz type="convolution" />
+
+<Callout type="note" title="Promptable Foundation Segmentation: SAM">
+  Meta's **Segment Anything Model (SAM / SAM 2)** pairs a ViT image encoder with a lightweight mask decoder conditioned on user prompts (points, boxes, or text/video tracking), enabling zero-shot object masks without task-specific retraining.
+</Callout>
+
+<Callout type="math-deep-dive" title="Dice Coefficient vs. Pixel Cross-Entropy">
+  When foreground tumors occupy only 1% of an MRI slice, pixel-wise cross-entropy gives 99% accuracy for predicting all zeros! **Soft Dice Loss** directly optimizes mask overlap:
+
+  <Math tex="\text{Dice}(P, G) = \frac{2 |P \cap G| + \epsilon}{|P| + |G| + \epsilon}, \qquad \mathcal{L}_{\text{Dice}} = 1 - \text{Dice}(P, G)" display />
+</Callout>
+
+## Runnable Code: Soft Dice Loss & U-Net Skip Concatenation
+
+<CodeRunner
+  title="Soft Dice Loss & PyTorch U-Net Decoder Skip Block"
+  code={`import numpy as np
+
+def dice_score(pred_mask, gt_mask, eps=1e-6):
+    p = np.asarray(pred_mask, dtype=float)
+    g = np.asarray(gt_mask, dtype=float)
+    inter = np.sum(p * g)
+    return float((2.0 * inter + eps) / (np.sum(p) + np.sum(g) + eps))
+
+gt = np.array([[0, 1, 1], [0, 1, 1], [0, 0, 0]])
+good_pred = np.array([[0, 1, 1], [0, 1, 0], [0, 0, 0]])
+empty_pred = np.zeros((3, 3))
+
+print("Dice (good prediction) :", round(dice_score(good_pred, gt), 4))
+print("Dice (all-zero collapse):", round(dice_score(empty_pred, gt), 6))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+class UNetUpBlock(nn.Module):
+    def __init__(self, in_ch, skip_ch, out_ch):
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_ch, out_ch, kernel_size=2, stride=2)
+        self.conv = nn.Sequential(
+            nn.Conv2d(out_ch + skip_ch, out_ch, 3, padding=1),
+            nn.ReLU(),
+        )
+
+    def forward(self, x, skip):
+        x = self.up(x)
+        x = torch.cat([x, skip], dim=1)  # Concatenate along channel axis
+        return self.conv(x)
+
+up = UNetUpBlock(64, 32, 32)
+out = up(torch.randn(1, 64, 8, 8), torch.randn(1, 32, 16, 16))
+print("U-Net upsampled + fused output shape:", tuple(out.shape))`}
+  exerciseStarter={`import numpy as np
+
+def dice_loss(pred_probs, targets, eps=1e-6):
+    # TODO: return 1.0 - (2*sum(p*t) + eps) / (sum(p) + sum(t) + eps)
+    return 1.0`}
+  exerciseTests={`p = np.array([0.9, 0.9, 0.1, 0.1])
+t = np.array([1.0, 1.0, 0.0, 0.0])
+assert dice_loss(p, t) < 0.12
+assert dice_loss(np.zeros(4), t) > 0.99`}
+  exerciseSolution={`import numpy as np
+
+def dice_loss(pred_probs, targets, eps=1e-6):
+    p = np.asarray(pred_probs, dtype=float)
+    t = np.asarray(targets, dtype=float)
+    dice = (2.0 * np.sum(p * t) + eps) / (np.sum(p) + np.sum(t) + eps)
+    return float(1.0 - dice)`}
+  hint1="Compute intersection as np.sum(p * t)."
+  hint2="Return 1.0 - dice so gradient descent minimizes loss toward 0."
+/>
+
+<Quiz
+  lessonId="computer-vision/06-image-segmentation"
+  questions={[
+    {
+      id: "seg-q1",
+      type: "mcq",
+      prompt: "Why does U-Net concatenate encoder feature maps directly into decoder blocks?",
+      options: [
+        "To eliminate activation functions",
+        "To recover crisp fine spatial boundaries lost during encoder downsampling",
+        "To sort pixel intensities",
+        "To convert 2D images into 1D text"
+      ],
+      answer: 1,
+      explanation: "Encoder skip connections supply high-resolution edge coordinates while the bottleneck provides semantic context."
+    },
+    {
+      id: "seg-q2",
+      type: "fill-blank",
+      prompt: "For tiny foreground masks where pixel accuracy misleads, segmentation pipelines optimize overlap directly with ______ loss.",
+      answer: "Dice",
+      acceptableAnswers: ["dice", "soft dice", "iou"],
+      explanation: "Dice loss measures 2|P∩G| / (|P|+|G|) directly, resisting background class imbalance."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "U-Net fuses deep semantics with shallow spatial detail via channel concatenation skip connections.",
+    "Combine Binary Cross-Entropy with Soft Dice Loss on imbalanced segmentation masks.",
+    "Foundation promptable models like SAM enable zero-shot mask extraction from points or bounding boxes."
+  ]}
+/>
+

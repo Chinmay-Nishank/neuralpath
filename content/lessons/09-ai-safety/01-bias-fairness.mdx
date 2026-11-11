@@ -1,0 +1,119 @@
+---
+title: "Algorithmic Bias, Disparate Impact & Fairness Metrics"
+module: "ai-safety"
+moduleOrder: 9
+order: 1
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 16
+prerequisites: ["classical-ml/05-cross-validation-metrics"]
+objectives:
+  - "Recognize how historical labels and proxy features reproduce systemic bias even when sensitive columns are removed"
+  - "Compute Demographic Parity ratio and Equalized Odds (TPR/FPR parity) across subgroups"
+  - "Understand Kleinberg's impossibility theorem: you cannot satisfy all fairness definitions simultaneously when base rates differ"
+summary: "Audit models quantitatively for subgroup bias using Demographic Parity, Equalized Odds, and calibration tradeoffs."
+tags: ["fairness", "bias", "ethics", "demographic-parity", "equalized-odds"]
+vizTypes: ["roc-pr"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Deleting "Zip Code" Doesn't Make a Model Blind
+
+A naive fix for fairness is **"fairness through unawareness"**—dropping protected attributes like gender or race from the feature table. Yet correlated **proxy features** (ZIP codes, school names, purchasing habits, browsing timestamps) reconstruct protected attributes almost effortlessly!
+
+Auditing requires measuring **outcomes** across groups:
+- **Demographic Parity:** positive prediction rates $P(\hat{Y}=1 \mid G=a) \approx P(\hat{Y}=1 \mid G=b)$.
+- **Equal Opportunity / Equalized Odds:** equal True Positive Rates (qualified individuals get approved equally) and equal False Positive Rates across groups.
+
+<Viz type="roc-pr" />
+
+<Callout type="math-deep-dive" title="Fairness Impossibility Theorem">
+  Whenever two populations have genuinely different base rates $P(Y=1 \mid G=a) \neq P(Y=1 \mid G=b)$ and a predictor is imperfect, it is mathematically **impossible** to satisfy Calibration, Equal Positive Predictive Value, and Equalized Odds simultaneously. Domain ethics must explicitly choose which tradeoff fits the harm profile!
+</Callout>
+
+## Runnable Code: Auditing Demographic Parity & Equal Opportunity Gaps
+
+<CodeRunner
+  title="Measuring Disparate Impact & True Positive Rate Gap Across Subgroups"
+  code={`import numpy as np
+
+# Toy credit screening predictions for Group A and Group B
+y_true = np.array([1, 1, 0, 0, 1, 0,  1, 1, 0, 0, 1, 0])
+y_pred = np.array([1, 1, 0, 0, 1, 1,  1, 0, 0, 0, 0, 0])
+group  = np.array(["A"]*6 + ["B"]*6)
+
+for g in ["A", "B"]:
+    mask = (group == g)
+    pos_rate = np.mean(y_pred[mask])
+    tpr = np.mean(y_pred[mask & (y_true == 1)])
+    print(f"Group {g}: Selection Rate={pos_rate:.3f} | True Positive Rate={tpr:.3f}")
+
+sel_a = np.mean(y_pred[group == "A"])
+sel_b = np.mean(y_pred[group == "B"])
+print("Disparate Impact Ratio (B/A):", round(float(sel_b / sel_a), 3))`}
+  libraryCode={`import numpy as np
+from sklearn.metrics import confusion_matrix
+
+y_true = np.array([1, 0, 1, 1, 0, 1])
+y_pred = np.array([1, 0, 0, 1, 0, 1])
+tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+print("Subgroup TPR (Recall):", round(tp / (tp + fn), 3), "| FPR:", round(fp / (fp + tn), 3))`}
+  exerciseStarter={`import numpy as np
+
+def disparate_impact_ratio(y_pred, group_mask):
+    # TODO: return P(y_pred==1 | group_mask==True) / P(y_pred==1 | group_mask==False)
+    return 1.0`}
+  exerciseTests={`preds = np.array([1, 1, 1, 0,  1, 0, 0, 0])  # Group True: 0.25, Group False: 0.75
+grp = np.array([False, False, False, False, True, True, True, True])
+assert abs(disparate_impact_ratio(preds, grp) - (0.25 / 0.75)) < 1e-6`}
+  exerciseSolution={`import numpy as np
+
+def disparate_impact_ratio(y_pred, group_mask):
+    yp = np.asarray(y_pred, dtype=float)
+    gm = np.asarray(group_mask, dtype=bool)
+    rate_unpriv = float(np.mean(yp[gm]))
+    rate_priv = float(np.mean(yp[~gm]))
+    return rate_unpriv / max(1e-12, rate_priv)`}
+  hint1="Compute positive selection rates using boolean indexing yp[gm] and yp[~gm]."
+  hint2="Divide rate_unpriv by rate_priv."
+/>
+
+<Quiz
+  lessonId="ai-safety/01-bias-fairness"
+  questions={[
+    {
+      id: "fair-q1",
+      type: "mcq",
+      prompt: "Why does simply removing sensitive attributes like race or gender fail to guarantee model fairness?",
+      options: [
+        "Models crash without them",
+        "Correlated proxy features (location, income patterns, school history) encode the removed attribute indirectly",
+        "Gradient descent re-adds deleted columns",
+        "Regularization creates bias"
+      ],
+      answer: 1,
+      explanation: "Fairness through unawareness fails whenever redundant proxy features correlate with protected classes."
+    },
+    {
+      id: "fair-q2",
+      type: "fill-blank",
+      prompt: "Requiring equal True Positive Rates across demographic subgroups is known as Equal ______.",
+      answer: "Opportunity",
+      acceptableAnswers: ["opportunity", "odds"],
+      explanation: "Equal Opportunity requires equal TPR across groups; Equalized Odds adds equal FPR as well."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Never rely on deleting sensitive columns alone; audit predictions across subgroups directly.",
+    "Track Disparate Impact (selection ratio) alongside Equalized Odds (TPR and FPR parity).",
+    "Document ethical tradeoffs explicitly because imperfect predictors cannot optimize every fairness definition simultaneously."
+  ]}
+/>
+

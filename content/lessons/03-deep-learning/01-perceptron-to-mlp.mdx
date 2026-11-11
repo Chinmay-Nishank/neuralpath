@@ -1,0 +1,161 @@
+---
+title: "From Perceptron to Multi-Layer Perceptron (MLP) & Universal Approximation"
+module: "deep-learning"
+moduleOrder: 3
+order: 1
+level: "beginner"
+paths: ["beginner", "practitioner", "researcher"]
+estimatedMinutes: 18
+prerequisites: ["classical-ml/03-logistic-regression"]
+objectives:
+  - "Explain why single-layer perceptrons cannot solve non-linear problems like XOR"
+  - "Stack affine layers and non-linear activations into an MLP capable of arbitrary boundaries"
+  - "Train a real multi-layer network live in TensorFlow.js and implement a 2-layer MLP in NumPy"
+summary: "Cross from single linear neurons to multi-layer neural networks that bend coordinate space to solve XOR, circles, and spirals."
+tags: ["perceptron", "mlp", "deep-learning", "xor", "universal-approximation"]
+vizTypes: ["neural-network"]
+colabNotebook: "notebooks/deep-learning/mlp.ipynb"
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Bending Space One Hidden Layer at a Time
+
+A single perceptron computes $y = \sigma(w^T x + b)$—just a single straight hyperplane. As Minsky and Papert highlighted in 1969, no straight line can ever separate **XOR** (`(0,0), (1,1) -> 0` vs `(0,1), (1,0) -> 1`).
+
+Stacking a **hidden layer** of neurons with non-linear activations folds the input plane so XOR becomes linearly separable in the hidden representation!
+
+## Interactive Lab: Live Neural Network Playground
+
+Click **Play** below on the **XOR Quadrants** dataset, then try **Two Spirals** with 1 hidden layer vs. 2 hidden layers to watch real TensorFlow.js backpropagation sculpt the boundary in real time.
+
+<Viz type="neural-network" />
+
+<Callout type="math-deep-dive" title="Universal Approximation Theorem">
+  Cybenko (1989) and Hornik (1991) proved that a single sufficiently wide hidden layer with non-polynomial <GlossaryTerm term="Activation Function">activations</GlossaryTerm> can approximate any continuous function on a compact domain arbitrarily closely. Deep networks achieve this **exponentially more efficiently** than shallow wide layers by composing hierarchical features.
+</Callout>
+
+## Runnable Code: 2-Layer XOR MLP in NumPy vs. PyTorch
+
+<CodeRunner
+  title="Solving XOR with a 2-Layer MLP (NumPy & PyTorch)"
+  code={`import numpy as np
+
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=float)
+y = np.array([[0], [1], [1], [0]], dtype=float)
+
+rng = np.random.default_rng(42)
+W1 = rng.normal(0, 1.0, (2, 4))
+b1 = np.zeros((1, 4))
+W2 = rng.normal(0, 1.0, (4, 1))
+b2 = np.zeros((1, 1))
+
+sigmoid = lambda z: 1.0 / (1.0 + np.exp(-np.clip(z, -20, 20)))
+
+for _ in range(2500):
+    h = np.tanh(X @ W1 + b1)
+    pred = sigmoid(h @ W2 + b2)
+    d_out = (pred - y) / len(X)
+    dW2 = h.T @ d_out
+    db2 = np.sum(d_out, axis=0, keepdims=True)
+    dh = (d_out @ W2.T) * (1.0 - h ** 2)
+    dW1 = X.T @ dh
+    db1 = np.sum(dh, axis=0, keepdims=True)
+    W2 -= 0.5 * dW2; b2 -= 0.5 * db2
+    W1 -= 0.5 * dW1; b1 -= 0.5 * db1
+
+print("XOR predictions:", np.round(pred.ravel(), 3))`}
+  libraryCode={`import torch
+import torch.nn as nn
+
+torch.manual_seed(42)
+X = torch.tensor([[0.,0.],[0.,1.],[1.,0.],[1.,1.]])
+y = torch.tensor([[0.],[1.],[1.],[0.]])
+
+model = nn.Sequential(nn.Linear(2, 8), nn.Tanh(), nn.Linear(8, 1))
+opt = torch.optim.Adam(model.parameters(), lr=0.05)
+loss_fn = nn.BCEWithLogitsLoss()
+
+for _ in range(300):
+    opt.zero_grad()
+    loss = loss_fn(model(X), y)
+    loss.backward()
+    opt.step()
+
+print("PyTorch XOR probs:", torch.sigmoid(model(X)).detach().numpy().ravel().round(3))`}
+  colabCode={`import torch
+import torch.nn as nn
+
+class ResidualMLP(nn.Module):
+    def __init__(self, d_in=16, d_hid=64, d_out=2):
+        super().__init__()
+        self.in_proj = nn.Linear(d_in, d_hid)
+        self.block = nn.Sequential(nn.LayerNorm(d_hid), nn.GELU(), nn.Linear(d_hid, d_hid))
+        self.head = nn.Linear(d_hid, d_out)
+
+    def forward(self, x):
+        h = self.in_proj(x)
+        return self.head(h + self.block(h))
+
+net = ResidualMLP()
+print("Output shape:", tuple(net(torch.randn(8, 16)).shape))`}
+  exerciseStarter={`import numpy as np
+
+def mlp_forward(X, W1, b1, W2, b2):
+    # TODO: compute ReLU hidden layer h = maximum(0, X @ W1 + b1) and linear output h @ W2 + b2
+    return None`}
+  exerciseTests={`X = np.array([[1.0, -2.0]])
+W1 = np.array([[1.0, -1.0], [0.0, 1.0]])
+b1 = np.array([0.0, 0.0])
+W2 = np.array([[2.0], [3.0]])
+b2 = np.array([1.0])
+out = mlp_forward(X, W1, b1, W2, b2)
+# X @ W1 = [1, -3] -> ReLU -> [1, 0] -> @ W2 + b2 = 3.0
+assert np.allclose(out, [[3.0]])`}
+  exerciseSolution={`import numpy as np
+
+def mlp_forward(X, W1, b1, W2, b2):
+    h = np.maximum(0.0, X @ W1 + b1)
+    return h @ W2 + b2`}
+  hint1="Use np.maximum(0.0, X @ W1 + b1) for ReLU."
+  hint2="Multiply hidden representation h by W2 and add b2."
+/>
+
+<Quiz
+  lessonId="deep-learning/01-perceptron-to-mlp"
+  questions={[
+    {
+      id: "mlp-q1",
+      type: "mcq",
+      prompt: "What happens if you stack 10 hidden layers with NO activation functions (pure linear layers)?",
+      options: [
+        "The model becomes exponentially more expressive",
+        "All layers collapse algebraically into a single linear matrix multiplication",
+        "Gradients automatically become immune to vanishing",
+        "It solves XOR immediately"
+      ],
+      answer: 1,
+      explanation: "Because W_k(...(W_2(W_1 x))) = (W_k...W_1) x, linear layers without non-linearities have only linear capacity."
+    },
+    {
+      id: "mlp-q2",
+      type: "fill-blank",
+      prompt: "The theorem stating a wide single-hidden-layer network can approximate any continuous function on a bounded domain is the ______ Approximation Theorem.",
+      answer: "Universal",
+      acceptableAnswers: ["universal"],
+      explanation: "The Universal Approximation Theorem guarantees existence, though depth makes representations far more parameter-efficient."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Non-linear activations between linear layers prevent deep networks from collapsing into a single linear map.",
+    "Hidden layers warp input geometry so non-linear patterns like XOR become linearly separable.",
+    "Depth enables hierarchical feature composition with far fewer parameters than shallow wide networks."
+  ]}
+/>
+

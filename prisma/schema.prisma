@@ -1,0 +1,106 @@
+// Optional PostgreSQL schema for syncing NeuralPath progress across devices.
+// When DATABASE_URL is unset, NeuralPath seamlessly uses localStorage only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String           @id @default(cuid())
+  name          String?
+  email         String?          @unique
+  emailVerified DateTime?
+  image         String?
+  activePath    String           @default("beginner")
+  accounts      Account[]
+  sessions      Session[]
+  progress      LessonProgress[]
+  quizAttempts  QuizAttempt[]
+  notes         LessonNote[]
+  bookmarks     Bookmark[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonSlug  String
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonSlug])
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  lessonSlug String
+  score      Int
+  total      Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LessonNote {
+  id         String   @id @default(cuid())
+  userId     String
+  lessonSlug String
+  content    String   @db.Text
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonSlug])
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  lessonSlug String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonSlug])
+}
+
+model Feedback {
+  id         String   @id @default(cuid())
+  kind       String   // "lesson_feedback" | "newsletter"
+  lessonSlug String?
+  helpful    Boolean?
+  email      String?
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+}
+

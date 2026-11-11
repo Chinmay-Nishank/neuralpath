@@ -1,0 +1,108 @@
+---
+title: "Python for Machine Learning: Pipelines, Vectorization & Clean State"
+module: "foundations"
+moduleOrder: 1
+order: 2
+level: "beginner"
+paths: ["beginner", "practitioner"]
+estimatedMinutes: 14
+prerequisites: ["foundations/01-what-is-a-model"]
+objectives:
+  - "Write deterministic, pure Python data transformations using comprehensions and zip"
+  - "Avoid common ML bugs like mutable default arguments and silent list aliasing"
+  - "Understand why Python loops bottleneck numerical code compared to vectorized NumPy"
+summary: "Write clean, bug-free Python for ML data pipelines and benchmark pure-Python loops against vectorized execution."
+tags: ["python", "vectorization", "determinism", "data-pipelines"]
+vizTypes: ["linear-algebra"]
+hasScratchCode: true
+hasLibraryCode: true
+hasExercise: true
+published: true
+updatedAt: "2026-11-11"
+---
+
+## Intuition: Python as the Orchestrator, Not the Inner Loop
+
+Machine learning libraries are written in C, C++, and CUDA—not pure Python. Python acts as the clean **control plane** that loads data, constructs model graphs, and logs metrics, while compiled numerical kernels perform the arithmetic.
+
+<Callout type="warning" title="Avoid Mutable State Bugs in Training Loops">
+  Using mutable defaults like `def add_sample(x, buf=[]):` or mutating a shared batch dictionary in place across epochs causes subtle leakage and non-reproducible training runs. Always create fresh containers or copy explicitly.
+</Callout>
+
+## Visual Check: Vector Spaces Behind Python Lists
+
+When you convert Python lists of numbers into arrays, each sample becomes a coordinate vector that linear transformations can rotate and scale in one shot.
+
+<Viz type="linear-algebra" />
+
+<Callout type="math-deep-dive" title="Time Complexity of Python Loops vs. Vectorized Dot Products">
+  A Python `for` loop executes dynamic type checks, reference counting, and bytecode dispatch for every element $i = 1 \dots N$. Vectorized <GlossaryTerm term="Vectorization">vectorization</GlossaryTerm> pushes the loop inside contiguous C memory with SIMD instructions, often delivering 20x–100x speedups on $N = 10^5$ elements.
+</Callout>
+
+## Runnable Code: Pure Python vs. Vectorized NumPy
+
+<CodeRunner
+  title="Feature Normalization: Pure Python vs. Vectorized NumPy"
+  code={`import math
+
+# Pure Python z-score normalization (standardizing features)
+values = [12.0, 15.0, 18.0, 21.0, 24.0]
+mean = sum(values) / len(values)
+variance = sum((x - mean) ** 2 for x in values) / len(values)
+std = math.sqrt(variance)
+z_scores = [round((x - mean) / std, 4) for x in values]
+
+print("Mean:", mean, "Std:", round(std, 4))
+print("Normalized:", z_scores)`}
+  libraryCode={`import numpy as np
+
+arr = np.array([12.0, 15.0, 18.0, 21.0, 24.0])
+z_scores = (arr - arr.mean()) / arr.std()
+print("Vectorized z-scores:", np.round(z_scores, 4))`}
+  exerciseStarter={`def dot_product_py(a, b):
+    # TODO: compute dot product of two equal-length Python lists using zip()
+    return 0.0`}
+  exerciseTests={`assert abs(dot_product_py([1, 2, 3], [4, 5, 6]) - 32.0) < 1e-6
+assert abs(dot_product_py([-1, 2], [3, 1.5]) - 0.0) < 1e-6`}
+  exerciseSolution={`def dot_product_py(a, b):
+    return sum(x * y for x, y in zip(a, b))`}
+  hint1="Pair elements from both lists cleanly using zip(a, b)."
+  hint2="Use sum(x * y for x, y in zip(a, b))."
+/>
+
+<Quiz
+  lessonId="foundations/02-python-for-ml"
+  questions={[
+    {
+      id: "py-q1",
+      type: "mcq",
+      prompt: "Why do ML engineers avoid pure Python for-loops over millions of floats?",
+      options: [
+        "Python cannot represent 64-bit floating-point numbers",
+        "Dynamic type checks and interpreter dispatch per element make tight loops slow",
+        "Python does not support dot products",
+        "Garbage collection deletes NumPy arrays inside loops"
+      ],
+      answer: 1,
+      explanation: "Interpreted per-element dispatch creates huge overhead compared to contiguous C/SIMD operations in NumPy."
+    },
+    {
+      id: "py-q2",
+      type: "code-completion",
+      prompt: "Complete the list comprehension that squares every positive number in nums:",
+      codeSnippet: "pos_sq = [x ** 2 for x in nums _____]",
+      answer: "if x > 0",
+      acceptableAnswers: ["if x > 0", "if x>0"],
+      explanation: "Filtering conditions sit at the end of a Python list comprehension."
+    }
+  ]}
+/>
+
+<KeyTakeaways
+  items={[
+    "Use Python for clean pipeline orchestration, deterministic seeds, and readability.",
+    "Prefer generator expressions, zip(), and list comprehensions over index-heavy loops.",
+    "Offload heavy arithmetic from Python loops to compiled vectorized arrays."
+  ]}
+/>
+
