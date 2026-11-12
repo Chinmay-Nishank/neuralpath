@@ -20,6 +20,7 @@ export function LessonShell({
   headerSlot,
   children,
   afterProseSlot,
+  nextLesson,
 }: {
   modules: SidebarModuleGroup[];
   routeId: string;
@@ -33,6 +34,7 @@ export function LessonShell({
   headerSlot: React.ReactNode;
   children: React.ReactNode;
   afterProseSlot: React.ReactNode;
+  nextLesson?: { title: string; url: string } | null;
 }) {
   const { state } = useProgress();
 
@@ -64,6 +66,7 @@ export function LessonShell({
               routeId={routeId}
               slugPath={slugPath}
               lessonTitle={lessonTitle}
+              nextLesson={nextLesson}
             />
             {afterProseSlot}
           </div>

@@ -201,3 +201,25 @@
   definition: When an agent maximizes a flawed proxy reward metric while violating the designer's true intent.
   lessonUrl: /learn/ai-safety/05-alignment-specification
 
+- term: KV-Cache
+  aliases: ["key-value cache", "paged attention", "vLLM"]
+  definition: Caching precomputed Key and Value projection tensors across decoding steps so generating each new autoregressive token costs O(1) attention compute rather than recomputing past tokens.
+  formula: "K_{new} = [K_{past}; k_t], \\quad V_{new} = [V_{past}; v_t]"
+  lessonUrl: /learn/nlp-transformers/07-gpt-decoders
+
+- term: LoRA
+  aliases: ["Low-Rank Adaptation", "QLoRA", "PEFT"]
+  definition: Parameter-efficient fine-tuning that keeps base weights W_0 frozen and learns small low-rank adapter matrices delta_W = B * A with rank r << d, slashing trainable parameter count by 99%+.
+  formula: "h = W_0 x + \\frac{\\alpha}{r} B A x"
+  lessonUrl: /learn/generative-ai/07-fine-tuning-lora-qlora
+
+- term: Grouped-Query Attention
+  aliases: ["GQA", "MQA", "Multi-Query Attention"]
+  definition: An attention architecture interpolating between Multi-Head Attention and Multi-Query Attention by grouping query heads to share a smaller subset of key and value heads, significantly reducing KV-cache VRAM usage.
+  lessonUrl: /learn/nlp-transformers/05-transformer-architecture
+
+- term: Continuous Batching
+  aliases: ["iteration-level batching", "vLLM serving"]
+  definition: An inference serving technique that operates at the token iteration level rather than request level, dynamically scheduling new prompts and evicting finished completions each step to eliminate padding waste.
+  lessonUrl: /learn/mlops/02-model-serving-batching
+

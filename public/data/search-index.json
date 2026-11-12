@@ -1,0 +1,1203 @@
+[
+  {
+    "routeId": "deep-learning/01-perceptron-to-mlp",
+    "title": "From Perceptron to Multi-Layer Perceptron (MLP) & Universal Approximation",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "beginner",
+    "estimatedMinutes": 18,
+    "summary": "Cross from single linear neurons to multi-layer neural networks that bend coordinate space to solve XOR, circles, and spirals.",
+    "tags": [
+      "perceptron",
+      "mlp",
+      "deep-learning",
+      "xor",
+      "universal-approximation"
+    ],
+    "url": "/learn/deep-learning/01-perceptron-to-mlp"
+  },
+  {
+    "routeId": "deep-learning/02-activation-functions",
+    "title": "Activation Functions: Sigmoid, Tanh, ReLU, GELU & SwiGLU",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "beginner",
+    "estimatedMinutes": 15,
+    "summary": "Understand why activation derivatives dictate gradient flow, and why modern LLMs use GELU and SwiGLU over classical Sigmoid.",
+    "tags": [
+      "activation-functions",
+      "relu",
+      "gelu",
+      "swiglu",
+      "vanishing-gradients"
+    ],
+    "url": "/learn/deep-learning/02-activation-functions"
+  },
+  {
+    "routeId": "deep-learning/03-loss-functions",
+    "title": "Loss Functions: MSE, Cross-Entropy, Huber & InfoNCE Contrastive Loss",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Match model objectives to problem geometry—from robust Huber regression to multi-class cross-entropy and contrastive InfoNCE.",
+    "tags": [
+      "loss-functions",
+      "cross-entropy",
+      "huber",
+      "infonce",
+      "contrastive"
+    ],
+    "url": "/learn/deep-learning/03-loss-functions"
+  },
+  {
+    "routeId": "deep-learning/04-backpropagation",
+    "title": "Backpropagation: Computational Graphs & Reverse-Mode Autodiff",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "practitioner",
+    "estimatedMinutes": 20,
+    "summary": "Build a miniature PyTorch-style autograd engine from scratch using topological sorting and reverse-mode chain-rule accumulation.",
+    "tags": [
+      "backpropagation",
+      "autograd",
+      "computational-graph",
+      "reverse-mode"
+    ],
+    "url": "/learn/deep-learning/04-backpropagation"
+  },
+  {
+    "routeId": "deep-learning/05-optimizers",
+    "title": "Optimizers: SGD, Momentum, RMSProp, Adam & AdamW",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Go from SGD with Momentum to bias-corrected AdamW and cosine learning-rate scheduling used across modern deep learning.",
+    "tags": [
+      "optimizers",
+      "adamw",
+      "momentum",
+      "lr-schedule",
+      "cosine-decay"
+    ],
+    "url": "/learn/deep-learning/05-optimizers"
+  },
+  {
+    "routeId": "deep-learning/06-weight-initialization",
+    "title": "Weight Initialization (Xavier & Kaiming) & Signal Propagation",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "practitioner",
+    "estimatedMinutes": 15,
+    "summary": "Prevent activations and gradients from exploding or collapsing at step 0 using Xavier and Kaiming variance-preserving initialization.",
+    "tags": [
+      "initialization",
+      "kaiming",
+      "xavier",
+      "glorot",
+      "signal-propagation"
+    ],
+    "url": "/learn/deep-learning/06-weight-initialization"
+  },
+  {
+    "routeId": "deep-learning/07-normalization-batch-layer",
+    "title": "Normalization: BatchNorm, LayerNorm & RMSNorm",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Stabilize deep activation scales across CNNs and Transformers using BatchNorm, LayerNorm, and lightweight RMSNorm.",
+    "tags": [
+      "normalization",
+      "batchnorm",
+      "layernorm",
+      "rmsnorm",
+      "transformers"
+    ],
+    "url": "/learn/deep-learning/07-normalization-batch-layer"
+  },
+  {
+    "routeId": "deep-learning/08-regularization-dropout",
+    "title": "Preventing Overfitting in Deep Nets: Dropout, Weight Decay & Early Stopping",
+    "module": "deep-learning",
+    "moduleTitle": "Deep Learning Core",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Regularize deep neural networks with inverted dropout, decoupled weight decay, label smoothing, and validation early stopping.",
+    "tags": [
+      "dropout",
+      "overfitting",
+      "weight-decay",
+      "early-stopping",
+      "label-smoothing"
+    ],
+    "url": "/learn/deep-learning/08-regularization-dropout"
+  },
+  {
+    "routeId": "classical-ml/01-linear-regression",
+    "title": "Linear Regression & Ordinary Least Squares",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "beginner",
+    "estimatedMinutes": 16,
+    "summary": "Learn how linear regression finds the best-fit hyperplane analytically via the Normal Equation and iteratively via gradient descent.",
+    "tags": [
+      "linear-regression",
+      "ols",
+      "normal-equation",
+      "rmse"
+    ],
+    "url": "/learn/classical-ml/01-linear-regression"
+  },
+  {
+    "routeId": "classical-ml/02-gradient-descent",
+    "title": "Gradient Descent & Loss Surfaces",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "beginner",
+    "estimatedMinutes": 18,
+    "summary": "Master the optimization engine behind nearly all modern ML and deep learning, from anisotropic ravines to adaptive momentum updates.",
+    "tags": [
+      "gradient-descent",
+      "optimizers",
+      "momentum",
+      "adam",
+      "loss-surface"
+    ],
+    "url": "/learn/classical-ml/02-gradient-descent"
+  },
+  {
+    "routeId": "classical-ml/03-logistic-regression",
+    "title": "Logistic Regression & Binary Classification",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "beginner",
+    "estimatedMinutes": 16,
+    "summary": "Build logistic regression from scratch using log-odds, sigmoid probability mapping, and binary cross-entropy optimization.",
+    "tags": [
+      "logistic-regression",
+      "classification",
+      "sigmoid",
+      "cross-entropy"
+    ],
+    "url": "/learn/classical-ml/03-logistic-regression"
+  },
+  {
+    "routeId": "classical-ml/04-bias-variance-regularization",
+    "title": "Bias-Variance Tradeoff & Regularization (Ridge, Lasso, ElasticNet)",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "beginner",
+    "estimatedMinutes": 18,
+    "summary": "Balance model capacity against overfitting using bias-variance decomposition and L1/L2 regularization.",
+    "tags": [
+      "bias-variance",
+      "regularization",
+      "ridge",
+      "lasso",
+      "overfitting"
+    ],
+    "url": "/learn/classical-ml/04-bias-variance-regularization"
+  },
+  {
+    "routeId": "classical-ml/05-cross-validation-metrics",
+    "title": "Cross-Validation & Evaluation Metrics (ROC-AUC, PR-AUC, Confusion Matrix)",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "beginner",
+    "estimatedMinutes": 17,
+    "summary": "Evaluate classifiers honestly using stratified cross-validation, confusion matrices, ROC curves, and Precision-Recall tradeoffs.",
+    "tags": [
+      "cross-validation",
+      "metrics",
+      "roc-auc",
+      "pr-auc",
+      "confusion-matrix"
+    ],
+    "url": "/learn/classical-ml/05-cross-validation-metrics"
+  },
+  {
+    "routeId": "classical-ml/06-feature-engineering",
+    "title": "Feature Engineering, Scaling, Encoding & Leakage Prevention",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Build leak-free tabular preprocessing pipelines combining scaling, categorical encoding, and domain feature ratios.",
+    "tags": [
+      "feature-engineering",
+      "pipelines",
+      "data-leakage",
+      "encoding",
+      "scaling"
+    ],
+    "url": "/learn/classical-ml/06-feature-engineering"
+  },
+  {
+    "routeId": "classical-ml/07-knn-and-svm",
+    "title": "k-Nearest Neighbors & Support Vector Machines (Margins & Kernels)",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Master non-parametric k-NN neighbors and maximum-margin RBF Kernel SVMs with interactive decision boundary exploration.",
+    "tags": [
+      "knn",
+      "svm",
+      "kernel-trick",
+      "rbf",
+      "margins"
+    ],
+    "url": "/learn/classical-ml/07-knn-and-svm"
+  },
+  {
+    "routeId": "classical-ml/08-decision-trees",
+    "title": "Decision Trees: Gini Impurity, Entropy & Pruning",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "beginner",
+    "estimatedMinutes": 16,
+    "summary": "Build intuition for recursive axis-aligned partitioning using Gini impurity and depth constraints.",
+    "tags": [
+      "decision-trees",
+      "gini-impurity",
+      "entropy",
+      "pruning"
+    ],
+    "url": "/learn/classical-ml/08-decision-trees"
+  },
+  {
+    "routeId": "classical-ml/09-random-forests-gradient-boosting",
+    "title": "Ensembles: Random Forests & Gradient Boosting",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 20,
+    "summary": "Understand why tree ensembles dominate tabular benchmarks through bagging decorrelation and stage-wise gradient boosting.",
+    "tags": [
+      "random-forest",
+      "gradient-boosting",
+      "bagging",
+      "ensembles",
+      "tabular"
+    ],
+    "url": "/learn/classical-ml/09-random-forests-gradient-boosting"
+  },
+  {
+    "routeId": "classical-ml/10-kmeans-and-pca",
+    "title": "Unsupervised Learning: k-Means Clustering & Principal Component Analysis (PCA)",
+    "module": "classical-ml",
+    "moduleTitle": "Classical Machine Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Discover hidden cluster structure without labels using k-Means and compress high-dimensional variance using PCA.",
+    "tags": [
+      "unsupervised",
+      "kmeans",
+      "pca",
+      "svd",
+      "dimensionality-reduction"
+    ],
+    "url": "/learn/classical-ml/10-kmeans-and-pca"
+  },
+  {
+    "routeId": "foundations/01-what-is-a-model",
+    "title": "What Is a Model? Functions, Data, and Learning from Experience",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 12,
+    "summary": "Every machine learning system—from linear regression to GPT—is a parameterized function whose weights are tuned to minimize error on examples.",
+    "tags": [
+      "model",
+      "parameters",
+      "supervised-learning",
+      "training-loop"
+    ],
+    "url": "/learn/foundations/01-what-is-a-model"
+  },
+  {
+    "routeId": "foundations/02-python-for-ml",
+    "title": "Python for Machine Learning: Pipelines, Vectorization & Clean State",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 14,
+    "summary": "Write clean, bug-free Python for ML data pipelines and benchmark pure-Python loops against vectorized execution.",
+    "tags": [
+      "python",
+      "vectorization",
+      "determinism",
+      "data-pipelines"
+    ],
+    "url": "/learn/foundations/02-python-for-ml"
+  },
+  {
+    "routeId": "foundations/03-numpy-arrays",
+    "title": "NumPy from First Principles: Tensors, Broadcasting & Memory Layout",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 16,
+    "summary": "Master N-dimensional arrays, shape broadcasting rules, and vectorized matrix math that directly mirror PyTorch tensors.",
+    "tags": [
+      "numpy",
+      "broadcasting",
+      "tensors",
+      "shapes"
+    ],
+    "url": "/learn/foundations/03-numpy-arrays"
+  },
+  {
+    "routeId": "foundations/04-pandas-data-wrangling",
+    "title": "Pandas & Exploratory Data Analysis: Cleaning & Inspecting Data",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 15,
+    "summary": "Use Pandas to audit real tabular data, handle missing values cleanly, and compute grouped statistics prior to model training.",
+    "tags": [
+      "pandas",
+      "eda",
+      "tabular-data",
+      "cleaning"
+    ],
+    "url": "/learn/foundations/04-pandas-data-wrangling"
+  },
+  {
+    "routeId": "foundations/05-linear-algebra-intuition",
+    "title": "Linear Algebra with Visual Intuition: Matrices, Dot Products & Eigenvalues",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 18,
+    "summary": "Build geometric intuition for vectors, matrix transforms, cosine similarity, and eigenvalues that underpin embeddings, PCA, and Transformers.",
+    "tags": [
+      "linear-algebra",
+      "dot-product",
+      "cosine-similarity",
+      "eigenvalues",
+      "svd"
+    ],
+    "url": "/learn/foundations/05-linear-algebra-intuition"
+  },
+  {
+    "routeId": "foundations/06-calculus-gradients",
+    "title": "Calculus for ML: Derivatives, Partial Gradients, Chain Rule & Jacobians",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 18,
+    "summary": "Understand derivatives, partial gradients, and the multivariate chain rule with live computational graphs and numerical gradient checks.",
+    "tags": [
+      "calculus",
+      "gradients",
+      "chain-rule",
+      "finite-differences"
+    ],
+    "url": "/learn/foundations/06-calculus-gradients"
+  },
+  {
+    "routeId": "foundations/07-probability-statistics",
+    "title": "Probability, Distributions, Bayes' Rule & Information Theory",
+    "module": "foundations",
+    "moduleTitle": "Foundations",
+    "level": "beginner",
+    "estimatedMinutes": 18,
+    "summary": "Build intuition for uncertainty, Bayes' theorem, probability distributions, and the information-theoretic roots of cross-entropy loss.",
+    "tags": [
+      "probability",
+      "bayes",
+      "entropy",
+      "kl-divergence",
+      "cross-entropy"
+    ],
+    "url": "/learn/foundations/07-probability-statistics"
+  },
+  {
+    "routeId": "nlp-transformers/01-tokenization-bpe",
+    "title": "Tokenization: Character, WordPiece & Byte-Pair Encoding (BPE)",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "beginner",
+    "estimatedMinutes": 16,
+    "summary": "See how LLMs convert raw Unicode strings into integer token IDs using Byte-Pair Encoding subword merges.",
+    "tags": [
+      "tokenization",
+      "bpe",
+      "subwords",
+      "llm",
+      "nlp"
+    ],
+    "url": "/learn/nlp-transformers/01-tokenization-bpe"
+  },
+  {
+    "routeId": "nlp-transformers/02-word-embeddings",
+    "title": "Distributed Representations & Embeddings: Word2Vec & Vector Geometry",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Map discrete token IDs into continuous vector spaces where semantic similarity becomes geometric proximity.",
+    "tags": [
+      "embeddings",
+      "word2vec",
+      "vector-space",
+      "cosine-similarity"
+    ],
+    "url": "/learn/nlp-transformers/02-word-embeddings"
+  },
+  {
+    "routeId": "nlp-transformers/03-rnns-lstm-gru",
+    "title": "Sequence Modeling with RNNs, Vanishing Gradients, LSTMs & GRUs",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Understand recurrent sequence processing, why BPTT suffers from vanishing gradients, and how gated LSTMs paved the way for Transformers.",
+    "tags": [
+      "rnn",
+      "lstm",
+      "gru",
+      "bptt",
+      "vanishing-gradients"
+    ],
+    "url": "/learn/nlp-transformers/03-rnns-lstm-gru"
+  },
+  {
+    "routeId": "nlp-transformers/04-self-attention",
+    "title": "Self-Attention: Queries, Keys, Values, and Scaled Dot-Product",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "practitioner",
+    "estimatedMinutes": 22,
+    "summary": "Understand the core operation powering every modern Transformer: letting each token dynamically query and aggregate relevant context across the entire sequence.",
+    "tags": [
+      "self-attention",
+      "transformers",
+      "qkv",
+      "softmax",
+      "causal-mask"
+    ],
+    "url": "/learn/nlp-transformers/04-self-attention"
+  },
+  {
+    "routeId": "nlp-transformers/05-transformer-architecture",
+    "title": "The Complete Modern Transformer: Multi-Head Attention, RoPE, GQA & SwiGLU",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "researcher",
+    "estimatedMinutes": 25,
+    "summary": "Walk through every component of modern Transformers—from multi-head projections to RoPE, GQA, RMSNorm, and SwiGLU.",
+    "tags": [
+      "transformer",
+      "rope",
+      "gqa",
+      "rmsnorm",
+      "swiglu",
+      "multi-head-attention"
+    ],
+    "url": "/learn/nlp-transformers/05-transformer-architecture"
+  },
+  {
+    "routeId": "nlp-transformers/06-bert-encoders",
+    "title": "Encoder Transformers (BERT): Masked Language Modeling & Bidirectional Context",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "See how bidirectional encoder Transformers excel at text classification, token tagging, and dense retrieval embeddings.",
+    "tags": [
+      "bert",
+      "encoder",
+      "masked-language-modeling",
+      "embeddings",
+      "retrieval"
+    ],
+    "url": "/learn/nlp-transformers/06-bert-encoders"
+  },
+  {
+    "routeId": "nlp-transformers/07-gpt-decoders",
+    "title": "Autoregressive Decoders (GPT): Causal Masking, KV Caching & Sampling",
+    "module": "nlp-transformers",
+    "moduleTitle": "Sequence Models & Transformers",
+    "level": "practitioner",
+    "estimatedMinutes": 20,
+    "summary": "Go inside GPT decoders: causal next-token prediction, KV-cache acceleration, and controlled stochastic text sampling.",
+    "tags": [
+      "gpt",
+      "decoder",
+      "kv-cache",
+      "sampling",
+      "top-p",
+      "temperature"
+    ],
+    "url": "/learn/nlp-transformers/07-gpt-decoders"
+  },
+  {
+    "routeId": "generative-ai/01-autoencoders-vae",
+    "title": "Autoencoders & Variational Autoencoders (VAEs): ELBO & Latent Manifolds",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "researcher",
+    "estimatedMinutes": 19,
+    "summary": "Learn how Variational Autoencoders regularize latent manifolds with KL divergence and power latent-space generative models.",
+    "tags": [
+      "vae",
+      "autoencoder",
+      "elbo",
+      "reparameterization",
+      "latent-space"
+    ],
+    "url": "/learn/generative-ai/01-autoencoders-vae"
+  },
+  {
+    "routeId": "generative-ai/02-gans",
+    "title": "Generative Adversarial Networks (GANs): Minimax Games & Stability",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "researcher",
+    "estimatedMinutes": 17,
+    "summary": "Understand adversarial minimax training, why GANs suffer mode collapse, and why diffusion/flow models superseded them for diverse generation.",
+    "tags": [
+      "gan",
+      "adversarial",
+      "minimax",
+      "mode-collapse",
+      "wgan"
+    ],
+    "url": "/learn/generative-ai/02-gans"
+  },
+  {
+    "routeId": "generative-ai/03-diffusion-flow-matching",
+    "title": "Diffusion Models & Modern Flow Matching (DDPM, Rectified Flows & DiT)",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "researcher",
+    "estimatedMinutes": 22,
+    "summary": "Learn how modern image and video generators evolved from curved DDPM diffusion to Rectified Flow Matching and Diffusion Transformers (DiT).",
+    "tags": [
+      "diffusion",
+      "flow-matching",
+      "rectified-flow",
+      "dit",
+      "ddpm"
+    ],
+    "url": "/learn/generative-ai/03-diffusion-flow-matching"
+  },
+  {
+    "routeId": "generative-ai/04-scaling-laws-llms",
+    "title": "Large Language Models: Scaling Laws, Chinchilla & Mixture-of-Experts (MoE)",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "researcher",
+    "estimatedMinutes": 19,
+    "summary": "Understand LLM scaling laws, compute vs. inference tradeoffs, and sparse Mixture-of-Experts (MoE) routing.",
+    "tags": [
+      "scaling-laws",
+      "chinchilla",
+      "moe",
+      "mixture-of-experts",
+      "llm"
+    ],
+    "url": "/learn/generative-ai/04-scaling-laws-llms"
+  },
+  {
+    "routeId": "generative-ai/05-prompt-engineering",
+    "title": "Prompt Engineering & Structured Outputs (JSON Schema, Few-Shot, CoT)",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "beginner",
+    "estimatedMinutes": 15,
+    "summary": "Engineer reliable LLM interfaces using structured schemas, delimited untrusted inputs, few-shot demonstrations, and reasoning traces.",
+    "tags": [
+      "prompt-engineering",
+      "structured-outputs",
+      "json-schema",
+      "chain-of-thought"
+    ],
+    "url": "/learn/generative-ai/05-prompt-engineering"
+  },
+  {
+    "routeId": "generative-ai/06-rag-pipelines",
+    "title": "Retrieval-Augmented Generation (RAG): Hybrid Search, Reranking & Agentic RAG",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "practitioner",
+    "estimatedMinutes": 19,
+    "summary": "Ground LLM responses in live external knowledge using chunking, hybrid dense+BM25 retrieval, reranking, and agentic query routing.",
+    "tags": [
+      "rag",
+      "hybrid-search",
+      "bm25",
+      "reranking",
+      "agentic-rag"
+    ],
+    "url": "/learn/generative-ai/06-rag-pipelines"
+  },
+  {
+    "routeId": "generative-ai/07-fine-tuning-lora-qlora",
+    "title": "Fine-Tuning LLMs: SFT, LoRA, QLoRA (NF4) & Adapter Merging",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "practitioner",
+    "estimatedMinutes": 20,
+    "summary": "Adapt billion-parameter LLMs on a single GPU using Low-Rank Adaptation (LoRA), 4-bit QLoRA, and curated instruction datasets.",
+    "tags": [
+      "lora",
+      "qlora",
+      "fine-tuning",
+      "sft",
+      "peft",
+      "nf4"
+    ],
+    "url": "/learn/generative-ai/07-fine-tuning-lora-qlora"
+  },
+  {
+    "routeId": "generative-ai/08-agents-tool-use-mcp",
+    "title": "AI Agents, Function Calling, ReAct Loops & Model Context Protocol (MCP)",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Build reliable tool-using agents with typed JSON schemas, ReAct orchestration, MCP servers, and security guardrails.",
+    "tags": [
+      "agents",
+      "tool-use",
+      "mcp",
+      "react",
+      "security"
+    ],
+    "url": "/learn/generative-ai/08-agents-tool-use-mcp"
+  },
+  {
+    "routeId": "generative-ai/09-llm-evaluation",
+    "title": "Evaluating Generative AI: Ragas Triad, LLM-as-a-Judge & Golden Suites",
+    "module": "generative-ai",
+    "moduleTitle": "Generative AI & Modern LLMs",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Replace 'vibe checks' with quantitative evaluation pipelines covering RAG faithfulness, tool-argument accuracy, and CI regression gates.",
+    "tags": [
+      "evaluation",
+      "ragas",
+      "llm-as-judge",
+      "faithfulness",
+      "ci-cd"
+    ],
+    "url": "/learn/generative-ai/09-llm-evaluation"
+  },
+  {
+    "routeId": "computer-vision/01-convolutions-kernels",
+    "title": "Convolutions, Kernels, Stride, Padding & Feature Maps",
+    "module": "computer-vision",
+    "moduleTitle": "Computer Vision",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Explore how learnable 2D kernels slide across images to detect edges, textures, and hierarchical visual patterns.",
+    "tags": [
+      "convolution",
+      "kernels",
+      "stride",
+      "padding",
+      "cnn"
+    ],
+    "url": "/learn/computer-vision/01-convolutions-kernels"
+  },
+  {
+    "routeId": "computer-vision/02-cnn-architectures",
+    "title": "CNN Evolution: LeNet, VGG & ResNet Skip Connections",
+    "module": "computer-vision",
+    "moduleTitle": "Computer Vision",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Trace how CNN architectures solved spatial hierarchy and depth degradation via 3x3 stacks and ResNet residual highways.",
+    "tags": [
+      "cnn",
+      "resnet",
+      "skip-connections",
+      "vgg",
+      "lenet"
+    ],
+    "url": "/learn/computer-vision/02-cnn-architectures"
+  },
+  {
+    "routeId": "computer-vision/03-data-augmentation-transfer",
+    "title": "Data Augmentation & Transfer Learning with Pretrained Backbones",
+    "module": "computer-vision",
+    "moduleTitle": "Computer Vision",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Achieve strong vision accuracy on small custom datasets by combining label-safe augmentations and pretrained transfer learning.",
+    "tags": [
+      "transfer-learning",
+      "data-augmentation",
+      "fine-tuning",
+      "mixup"
+    ],
+    "url": "/learn/computer-vision/03-data-augmentation-transfer"
+  },
+  {
+    "routeId": "computer-vision/04-vision-transformers",
+    "title": "Vision Transformers (ViT), Patch Embeddings, SigLIP & DINOv2",
+    "module": "computer-vision",
+    "moduleTitle": "Computer Vision",
+    "level": "researcher",
+    "estimatedMinutes": 19,
+    "summary": "See how Vision Transformers drop convolutions entirely—treating image patches as tokens—and power DINOv2 and SigLIP multimodal encoders.",
+    "tags": [
+      "vit",
+      "vision-transformer",
+      "patch-embedding",
+      "dinov2",
+      "siglip"
+    ],
+    "url": "/learn/computer-vision/04-vision-transformers"
+  },
+  {
+    "routeId": "computer-vision/05-object-detection",
+    "title": "Object Detection: IoU, Non-Max Suppression, YOLO & DETR",
+    "module": "computer-vision",
+    "moduleTitle": "Computer Vision",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Localize and classify multiple objects per image using IoU, Non-Maximum Suppression, YOLO dense grids, and set-based DETR.",
+    "tags": [
+      "object-detection",
+      "iou",
+      "nms",
+      "yolo",
+      "detr"
+    ],
+    "url": "/learn/computer-vision/05-object-detection"
+  },
+  {
+    "routeId": "computer-vision/06-image-segmentation",
+    "title": "Semantic, Instance & Panoptic Segmentation: U-Net & SAM",
+    "module": "computer-vision",
+    "moduleTitle": "Computer Vision",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Move from bounding boxes to exact pixel masks using U-Net encoder-decoder skip connections, Dice loss, and promptable SAM.",
+    "tags": [
+      "segmentation",
+      "unet",
+      "dice-loss",
+      "sam",
+      "pixel-masks"
+    ],
+    "url": "/learn/computer-vision/06-image-segmentation"
+  },
+  {
+    "routeId": "mlops/01-experiment-tracking",
+    "title": "Reproducibility, Data Versioning & Experiment Tracking",
+    "module": "mlops",
+    "moduleTitle": "MLOps & Production Systems",
+    "level": "practitioner",
+    "estimatedMinutes": 15,
+    "summary": "Make every ML training run strictly reproducible by hashing datasets, pinning configs, and logging structured experiment lineage.",
+    "tags": [
+      "mlops",
+      "reproducibility",
+      "experiment-tracking",
+      "hashing",
+      "lineage"
+    ],
+    "url": "/learn/mlops/01-experiment-tracking"
+  },
+  {
+    "routeId": "mlops/02-model-serving-batching",
+    "title": "Model Serving: ONNX Runtime, vLLM, Continuous Batching & Latency Budgets",
+    "module": "mlops",
+    "moduleTitle": "MLOps & Production Systems",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Serve classical, vision, and LLM models efficiently using ONNX Runtime, continuous batching, and PagedAttention memory management.",
+    "tags": [
+      "serving",
+      "onnx",
+      "vllm",
+      "paged-attention",
+      "continuous-batching",
+      "latency"
+    ],
+    "url": "/learn/mlops/02-model-serving-batching"
+  },
+  {
+    "routeId": "mlops/03-quantization-pruning",
+    "title": "Model Compression: INT8, FP8, AWQ Quantization & Knowledge Distillation",
+    "module": "mlops",
+    "moduleTitle": "MLOps & Production Systems",
+    "level": "researcher",
+    "estimatedMinutes": 19,
+    "summary": "Cut model VRAM footprint and memory-bandwidth latency by 2x-4x using INT8/FP8/AWQ quantization and teacher-student distillation.",
+    "tags": [
+      "quantization",
+      "int8",
+      "fp8",
+      "awq",
+      "distillation",
+      "compression"
+    ],
+    "url": "/learn/mlops/03-quantization-pruning"
+  },
+  {
+    "routeId": "mlops/04-monitoring-observability",
+    "title": "Production Telemetry: Tracing, Latency P99, Token Economics & Guardrails",
+    "module": "mlops",
+    "moduleTitle": "MLOps & Production Systems",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Monitor production ML & AI apps with end-to-end execution traces, P99 tail latency tracking, token budgets, and runtime guardrails.",
+    "tags": [
+      "observability",
+      "telemetry",
+      "p99",
+      "guardrails",
+      "tracing"
+    ],
+    "url": "/learn/mlops/04-monitoring-observability"
+  },
+  {
+    "routeId": "mlops/05-data-concept-drift",
+    "title": "Data Drift, Concept Drift, PSI / KS Tests & Retraining Triggers",
+    "module": "mlops",
+    "moduleTitle": "MLOps & Production Systems",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Detect silent accuracy decay in production models before business metrics suffer using PSI, KS tests, and drift-triggered retraining.",
+    "tags": [
+      "data-drift",
+      "concept-drift",
+      "psi",
+      "ks-test",
+      "monitoring"
+    ],
+    "url": "/learn/mlops/05-data-concept-drift"
+  },
+  {
+    "routeId": "mlops/06-ci-cd-for-ml",
+    "title": "CI/CD for ML Systems: Shadow Deployments, Canary Rollouts & Eval Gates",
+    "module": "mlops",
+    "moduleTitle": "MLOps & Production Systems",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Ship model and prompt updates safely using CI evaluation gates, slice checks, shadow deployments, and progressive canary rollouts.",
+    "tags": [
+      "ci-cd",
+      "canary",
+      "shadow-deployment",
+      "eval-gates",
+      "mlops"
+    ],
+    "url": "/learn/mlops/06-ci-cd-for-ml"
+  },
+  {
+    "routeId": "reinforcement-learning/01-mdps-bellman",
+    "title": "Markov Decision Processes (MDPs), Returns & Bellman Equations",
+    "module": "reinforcement-learning",
+    "moduleTitle": "Reinforcement Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 18,
+    "summary": "Build the mathematical foundation of Reinforcement Learning: Markov Decision Processes, discounted returns, and Bellman recursion.",
+    "tags": [
+      "mdp",
+      "bellman",
+      "reinforcement-learning",
+      "value-iteration",
+      "discount-factor"
+    ],
+    "url": "/learn/reinforcement-learning/01-mdps-bellman"
+  },
+  {
+    "routeId": "reinforcement-learning/02-q-learning-dqn",
+    "title": "Value-Based RL: Temporal Difference, Q-Learning & Deep Q-Networks (DQN)",
+    "module": "reinforcement-learning",
+    "moduleTitle": "Reinforcement Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 19,
+    "summary": "Learn optimal control directly from environment interaction using Q-learning, TD targets, replay buffers, and DQN target networks.",
+    "tags": [
+      "q-learning",
+      "dqn",
+      "temporal-difference",
+      "replay-buffer",
+      "rl"
+    ],
+    "url": "/learn/reinforcement-learning/02-q-learning-dqn"
+  },
+  {
+    "routeId": "reinforcement-learning/03-policy-gradients",
+    "title": "Policy Gradients: REINFORCE, Baselines & Actor-Critic (A2C)",
+    "module": "reinforcement-learning",
+    "moduleTitle": "Reinforcement Learning",
+    "level": "researcher",
+    "estimatedMinutes": 19,
+    "summary": "Move beyond discrete Q-tables to optimize continuous or high-dimensional policies directly with REINFORCE and Actor-Critic.",
+    "tags": [
+      "policy-gradients",
+      "reinforce",
+      "actor-critic",
+      "advantage",
+      "baseline"
+    ],
+    "url": "/learn/reinforcement-learning/03-policy-gradients"
+  },
+  {
+    "routeId": "reinforcement-learning/04-ppo",
+    "title": "Proximal Policy Optimization (PPO): Clipped Trust Regions & GAE",
+    "module": "reinforcement-learning",
+    "moduleTitle": "Reinforcement Learning",
+    "level": "researcher",
+    "estimatedMinutes": 20,
+    "summary": "Master PPO—the workhorse RL algorithm behind robotics control and classic RLHF—using clipped probability ratios and GAE.",
+    "tags": [
+      "ppo",
+      "gae",
+      "trust-region",
+      "rl",
+      "policy-optimization"
+    ],
+    "url": "/learn/reinforcement-learning/04-ppo"
+  },
+  {
+    "routeId": "reinforcement-learning/05-rlhf-dpo-grpo",
+    "title": "Post-Training Alignment: RLHF, Direct Preference Optimization (DPO) & GRPO",
+    "module": "reinforcement-learning",
+    "moduleTitle": "Reinforcement Learning",
+    "level": "researcher",
+    "estimatedMinutes": 22,
+    "summary": "See how frontier LLMs align with human preferences and verifiable reasoning using RLHF, DPO, and critic-free GRPO.",
+    "tags": [
+      "rlhf",
+      "dpo",
+      "grpo",
+      "alignment",
+      "post-training",
+      "reasoning"
+    ],
+    "url": "/learn/reinforcement-learning/05-rlhf-dpo-grpo"
+  },
+  {
+    "routeId": "reinforcement-learning/06-exploration-multi-agent",
+    "title": "Exploration vs. Exploitation: Bandits, UCB & Thompson Sampling",
+    "module": "reinforcement-learning",
+    "moduleTitle": "Reinforcement Learning",
+    "level": "practitioner",
+    "estimatedMinutes": 16,
+    "summary": "Balance trying uncertain arms against exploiting top performers using UCB confidence bonuses and Bayesian Thompson Sampling.",
+    "tags": [
+      "bandits",
+      "ucb",
+      "thompson-sampling",
+      "exploration",
+      "regret"
+    ],
+    "url": "/learn/reinforcement-learning/06-exploration-multi-agent"
+  },
+  {
+    "routeId": "ai-safety/01-bias-fairness",
+    "title": "Algorithmic Bias, Disparate Impact & Fairness Metrics",
+    "module": "ai-safety",
+    "moduleTitle": "AI Safety, Ethics & Interpretability",
+    "level": "beginner",
+    "estimatedMinutes": 16,
+    "summary": "Audit models quantitatively for subgroup bias using Demographic Parity, Equalized Odds, and calibration tradeoffs.",
+    "tags": [
+      "fairness",
+      "bias",
+      "ethics",
+      "demographic-parity",
+      "equalized-odds"
+    ],
+    "url": "/learn/ai-safety/01-bias-fairness"
+  },
+  {
+    "routeId": "ai-safety/02-shap-lime-explainability",
+    "title": "Feature Attribution: SHAP Values, LIME & Permutation Importance",
+    "module": "ai-safety",
+    "moduleTitle": "AI Safety, Ethics & Interpretability",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Open the tabular black box using Shapley (SHAP) attributions, local LIME surrogates, and permutation importance.",
+    "tags": [
+      "shap",
+      "lime",
+      "explainability",
+      "xai",
+      "feature-importance"
+    ],
+    "url": "/learn/ai-safety/02-shap-lime-explainability"
+  },
+  {
+    "routeId": "ai-safety/03-mechanistic-interpretability",
+    "title": "Mechanistic Interpretability: Polysemanticity, Sparse Autoencoders & Steering",
+    "module": "ai-safety",
+    "moduleTitle": "AI Safety, Ethics & Interpretability",
+    "level": "researcher",
+    "estimatedMinutes": 21,
+    "summary": "Look inside Transformer residual streams using dictionary learning, Sparse Autoencoders (SAEs), monosemantic circuits, and activation steering.",
+    "tags": [
+      "mechanistic-interpretability",
+      "sae",
+      "sparse-autoencoder",
+      "superposition",
+      "steering"
+    ],
+    "url": "/learn/ai-safety/03-mechanistic-interpretability"
+  },
+  {
+    "routeId": "ai-safety/04-adversarial-robustness",
+    "title": "Adversarial Robustness, Prompt Injection & Red-Teaming Defenses",
+    "module": "ai-safety",
+    "moduleTitle": "AI Safety, Ethics & Interpretability",
+    "level": "practitioner",
+    "estimatedMinutes": 17,
+    "summary": "Protect vision and LLM systems against adversarial perturbations, indirect prompt injections, and tool-poisoning exploits.",
+    "tags": [
+      "adversarial",
+      "fgsm",
+      "prompt-injection",
+      "red-teaming",
+      "security"
+    ],
+    "url": "/learn/ai-safety/04-adversarial-robustness"
+  },
+  {
+    "routeId": "ai-safety/05-alignment-specification",
+    "title": "Alignment Fundamentals: Reward Hacking, Goodhart's Law & Scalable Oversight",
+    "module": "ai-safety",
+    "moduleTitle": "AI Safety, Ethics & Interpretability",
+    "level": "researcher",
+    "estimatedMinutes": 18,
+    "summary": "Reason rigorously about reward misspecification, sycophancy, Goodhart's Law, and scalable oversight for capable AI systems.",
+    "tags": [
+      "alignment",
+      "reward-hacking",
+      "goodharts-law",
+      "oversight",
+      "ai-safety"
+    ],
+    "url": "/learn/ai-safety/05-alignment-specification"
+  },
+  {
+    "routeId": "ai-safety/06-privacy-governance",
+    "title": "Differential Privacy, Data Provenance & AI Governance Standards",
+    "module": "ai-safety",
+    "moduleTitle": "AI Safety, Ethics & Interpretability",
+    "level": "practitioner",
+    "estimatedMinutes": 15,
+    "summary": "Build privacy-preserving ML pipelines using Differential Privacy, DP-SGD gradient clipping, provenance tracking, and Model Cards.",
+    "tags": [
+      "differential-privacy",
+      "dp-sgd",
+      "governance",
+      "model-cards",
+      "provenance"
+    ],
+    "url": "/learn/ai-safety/06-privacy-governance"
+  },
+  {
+    "routeId": "capstones/01-capstone-playbook",
+    "title": "Capstone Engineering Playbook: Scoping, Baselines & Error Analysis",
+    "module": "capstones",
+    "moduleTitle": "Capstone Projects",
+    "level": "beginner",
+    "estimatedMinutes": 14,
+    "summary": "Prepare for the 5 hands-on end-to-end capstones with an industry-standard workflow for scoping, baselining, and error analysis.",
+    "tags": [
+      "capstone",
+      "playbook",
+      "error-analysis",
+      "baselines",
+      "workflow"
+    ],
+    "url": "/learn/capstones/01-capstone-playbook"
+  },
+  {
+    "routeId": "capstones/02-capstone-spam-classifier",
+    "title": "Capstone 1: End-to-End Spam & Phishing Classifier",
+    "module": "capstones",
+    "moduleTitle": "Capstone Projects",
+    "level": "beginner",
+    "estimatedMinutes": 25,
+    "summary": "Build, calibrate, threshold-tune, and audit an end-to-end spam & phishing detection system on the bundled dataset.",
+    "tags": [
+      "capstone",
+      "spam-classifier",
+      "tfidf",
+      "nlp",
+      "calibration"
+    ],
+    "url": "/learn/capstones/02-capstone-spam-classifier"
+  },
+  {
+    "routeId": "capstones/03-capstone-image-classifier",
+    "title": "Capstone 2: Custom Image Classifier with CNNs, Augmentation & Grad-CAM",
+    "module": "capstones",
+    "moduleTitle": "Capstone Projects",
+    "level": "practitioner",
+    "estimatedMinutes": 30,
+    "summary": "Train a compact multi-class CNN from end to end, evaluate per-class confusion, and audit spatial attention via Grad-CAM.",
+    "tags": [
+      "capstone",
+      "cnn",
+      "image-classifier",
+      "grad-cam",
+      "pytorch"
+    ],
+    "url": "/learn/capstones/03-capstone-image-classifier"
+  },
+  {
+    "routeId": "capstones/04-capstone-mini-gpt",
+    "title": "Capstone 3: Build & Train a Mini-GPT Transformer from Scratch",
+    "module": "capstones",
+    "moduleTitle": "Capstone Projects",
+    "level": "researcher",
+    "estimatedMinutes": 35,
+    "summary": "Put everything together to build, train, and sample from your own Mini-GPT decoder Transformer from scratch in PyTorch.",
+    "tags": [
+      "capstone",
+      "mini-gpt",
+      "transformer",
+      "autoregressive",
+      "pytorch"
+    ],
+    "url": "/learn/capstones/04-capstone-mini-gpt"
+  },
+  {
+    "routeId": "capstones/05-capstone-rag-assistant",
+    "title": "Capstone 4: Grounded Technical Docs RAG Assistant with Eval Suite",
+    "module": "capstones",
+    "moduleTitle": "Capstone Projects",
+    "level": "practitioner",
+    "estimatedMinutes": 28,
+    "summary": "Build an end-to-end grounded documentation assistant combining heading-aware chunking, hybrid RRF retrieval, and regression testing.",
+    "tags": [
+      "capstone",
+      "rag",
+      "hybrid-search",
+      "evaluation",
+      "citations"
+    ],
+    "url": "/learn/capstones/05-capstone-rag-assistant"
+  },
+  {
+    "routeId": "capstones/06-capstone-rl-grid-agent",
+    "title": "Capstone 5: Autonomous RL Grid Agent with Policy Evaluation",
+    "module": "capstones",
+    "moduleTitle": "Capstone Projects",
+    "level": "practitioner",
+    "estimatedMinutes": 26,
+    "summary": "Train and rigorously evaluate an autonomous Q-learning agent navigating hazards toward optimal paths in a GridWorld environment.",
+    "tags": [
+      "capstone",
+      "reinforcement-learning",
+      "q-learning",
+      "agent",
+      "evaluation"
+    ],
+    "url": "/learn/capstones/06-capstone-rl-grid-agent"
+  }
+]

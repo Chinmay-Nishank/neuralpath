@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ThumbsUp, ThumbsDown, ExternalLink, Globe, Brain } from 'lucide-react';
+import { CheckCircle2, ThumbsUp, ThumbsDown, ExternalLink, Globe, Brain, ArrowRight } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useProgress } from '@/components/progress/progress-provider';
 import { useReview } from '@/components/review/review-provider';
@@ -15,10 +15,12 @@ export function LessonFooterActions({
   routeId,
   slugPath,
   lessonTitle,
+  nextLesson,
 }: {
   routeId: string;
   slugPath: string;
   lessonTitle: string;
+  nextLesson?: { title: string; url: string } | null;
 }) {
   const { state, toggleLessonCompleted, markLessonVisited } = useProgress();
   const {
@@ -92,6 +94,18 @@ export function LessonFooterActions({
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
           <span>{completed ? 'Completed (Click to undo)' : 'Mark Lesson Complete'}</span>
         </Button>
+
+        {completed && nextLesson && (
+          <Link
+            href={nextLesson.url}
+            className={cn(buttonVariants({ variant: 'primary' }), 'min-h-[44px]')}
+          >
+            <span>
+              Next: {nextLesson.title.length > 25 ? `${nextLesson.title.slice(0, 24)}…` : nextLesson.title}
+            </span>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        )}
 
         {completed && lessonCardCount > 0 && (
           <Link

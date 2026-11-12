@@ -116,7 +116,7 @@ export const LEARNING_PATHWAYS: LearningPathway[] = [
       'Inspect Sparse Autoencoders (SAEs) and mechanistic neural features',
       'Audit model safety, bias, prompt injection resistance, and fairness metrics',
     ],
-    startUrl: '/learn/reinforcement-learning/01-intro-to-rl',
+    startUrl: '/learn/reinforcement-learning/01-mdps-bellman',
     colorVar: 'var(--chart-2)',
   },
   {

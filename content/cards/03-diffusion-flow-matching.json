@@ -1,0 +1,88 @@
+[
+  {
+    "id": "diffusion:forward-process",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "recall",
+    "front": "What does the forward (noising) process in DDPM do to clean training data x_0 over timesteps t = 1 ... T?",
+    "back": "Gradually injects Gaussian noise according to variance schedule β_t until x_T converges to pure isotropic Gaussian noise N(0, I).",
+    "explanation": "Because each step is linear Gaussian, x_t can be sampled directly at any arbitrary timestep t in closed form using α_bar_t.",
+    "tags": ["diffusion", "generative-ai", "ddpm"]
+  },
+  {
+    "id": "diffusion:model-prediction-target",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "mcq",
+    "front": "In standard DDPM training, what does the neural network epsilon_theta(x_t, t) learn to predict?",
+    "options": [
+      "The standard Gaussian noise epsilon that was added to x_0 to produce noisy latent x_t",
+      "The full uncorrupted raw RGB image tensor directly from random noise",
+      "The discrete class token embedding of the image label",
+      "The discriminator authenticity score between -1 and +1"
+    ],
+    "correctIndex": 0,
+    "back": "The standard Gaussian noise epsilon that was added to x_0 to produce noisy latent x_t",
+    "explanation": "Predicting noise epsilon yields stable MSE training L_simple = ||epsilon - epsilon_theta(x_t, t)||^2 and equivalent score matching gradients.",
+    "tags": ["loss", "ddpm", "training"]
+  },
+  {
+    "id": "diffusion:score-function-definition",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "cloze",
+    "front": "In score-based generative modeling, the score function s(x) is defined mathematically as the gradient of the log probability density with respect to the input: s(x) = _____ log p(x).",
+    "back": "nabla_x",
+    "explanation": "The score vector points in the direction of steepest density increase, guiding noisy latents toward modes of the true distribution.",
+    "tags": ["score-matching", "gradients"]
+  },
+  {
+    "id": "diffusion:flow-matching-advantage",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "recall",
+    "front": "How does Flow Matching (used in modern Diffusion Transformers like Flux and SD3) improve upon curved DDPM diffusion trajectories?",
+    "back": "It learns straight vector fields along optimal transport paths between noise and data, enabling high-fidelity sampling in far fewer solver steps.",
+    "explanation": "Straight trajectories minimize velocity changes along the flow path, allowing numerical ODE integration (Euler/Heun) with minimal discretization error.",
+    "tags": ["flow-matching", "dit", "optimal-transport"]
+  },
+  {
+    "id": "diffusion:cfg-purpose",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "mcq",
+    "front": "What trade-off is controlled by increasing Classifier-Free Guidance (CFG) scale w in conditional diffusion generation?",
+    "options": [
+      "Higher adherence to the text prompt and higher sample contrast at the cost of reduced sample diversity",
+      "Faster GPU rendering speed at the cost of lower resolution",
+      "Lower memory usage at the cost of floating-point underflow",
+      "Automatic conversion from 16-bit to 8-bit quantization"
+    ],
+    "correctIndex": 0,
+    "back": "Higher adherence to the text prompt and higher sample contrast at the cost of reduced sample diversity",
+    "explanation": "CFG extrapolates away from the unconditional prediction: eps_cfg = eps_uncond + w * (eps_cond - eps_uncond), boosting mode precision.",
+    "tags": ["cfg", "sampling"]
+  },
+  {
+    "id": "diffusion:closed-form-sampling",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "cloze",
+    "front": "The closed-form forward sampling formula for latent x_t given clean x_0 and noise epsilon ~ N(0, I) is x_t = sqrt(alpha_bar_t) * x_0 + sqrt(1 - alpha_bar_t) * _____.",
+    "back": "epsilon",
+    "explanation": "This reparameterization trick allows computing noisy x_t at any step without simulating intermediate diffusion steps.",
+    "tags": ["sampling", "reparameterization"]
+  },
+  {
+    "id": "diffusion:dit-architecture",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "recall",
+    "front": "Why have Diffusion Transformers (DiT) replaced classical U-Nets as the leading backbone for modern frontier video and image generation?",
+    "back": "Transformers scale predictably with compute (following power-law scaling laws) and process patched latents with adaptive layer norm conditioning.",
+    "explanation": "DiT replaces heavy inductive U-Net convolutions with standard transformer blocks conditioned on time and prompts via adaLN-Zero.",
+    "tags": ["dit", "transformers", "scaling"]
+  },
+  {
+    "id": "diffusion:latent-space-efficiency",
+    "lessonSlug": "generative-ai/03-diffusion-flow-matching",
+    "type": "recall",
+    "front": "What efficiency advantage does Latent Diffusion (Stable Diffusion) provide compared to Pixel-Space Diffusion?",
+    "back": "It runs the diffusion reverse process in a compressed 8x downsampled latent space from a pretrained VAE, reducing compute cost by 64x.",
+    "explanation": "Pixel space wastes compute predicting high-frequency imperceptible details, whereas VAE latents retain semantic structure at lower resolution.",
+    "tags": ["latent-diffusion", "vae"]
+  }
+]

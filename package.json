@@ -8,8 +8,8 @@
   },
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "npx velite build && concurrently -n velite,next \"npx velite watch\" \"next dev\"",
-    "build": "npx velite build && next build",
+    "dev": "npx velite build && node scripts/generate-search-index.mjs && concurrently -n velite,next \"npx velite watch\" \"next dev\"",
+    "build": "npx velite build && node scripts/generate-search-index.mjs && next build",
     "postbuild": "npx pagefind --site .next/server/app --output-path public/_pagefind",
     "start": "next start",
     "lint": "next lint",

@@ -1,0 +1,88 @@
+[
+  {
+    "id": "conv:operation-definition",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "recall",
+    "front": "What spatial mathematical operation does a 2D convolution kernel perform on an input image patch?",
+    "back": "An elementwise dot product between kernel weights and local receptive field pixels followed by summing into a scalar.",
+    "explanation": "Sliding this kernel across height and width produces a 2D spatial feature map preserving spatial relationships.",
+    "tags": ["computer-vision", "kernels", "convolution"]
+  },
+  {
+    "id": "conv:parameter-sharing",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "mcq",
+    "front": "What fundamental inductive bias makes convolutional layers dramatically more parameter-efficient on images than dense linear layers?",
+    "options": [
+      "Translational equivariance via shared spatial kernel weights",
+      "Dynamic sequence length masking",
+      "Orthogonal weight matrix initialization",
+      "Global scaled dot-product matrix multiplication"
+    ],
+    "correctIndex": 0,
+    "back": "Translational equivariance via shared spatial kernel weights",
+    "explanation": "Because the same small kernel applies everywhere across the image, a feature detected in the top-left is detected identically in the bottom-right without separate weights.",
+    "tags": ["inductive-bias", "weight-sharing"]
+  },
+  {
+    "id": "conv:output-dimension-formula",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "cloze",
+    "front": "Given input spatial dimension W, kernel size K, padding P, and stride S, the output spatial dimension is floor((W - K + 2*P) / _____) + 1.",
+    "back": "S",
+    "explanation": "Stride S defines how many pixels the kernel moves on each step, downsampling the spatial grid by factor S.",
+    "tags": ["spatial-math", "stride"]
+  },
+  {
+    "id": "conv:receptive-field-growth",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "recall",
+    "front": "Why do deep CNNs stack multiple small 3x3 convolution layers instead of using a single large 7x7 convolution layer?",
+    "back": "Two 3x3 layers achieve the same 5x5 receptive field with fewer parameters (18 vs 25) while introducing an extra non-linear activation.",
+    "explanation": "Stacking small kernels deepens representation capacity and reduces parameter count, as popularized by VGG.",
+    "tags": ["receptive-field", "architectures"]
+  },
+  {
+    "id": "conv:padding-purpose",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "recall",
+    "front": "What problem does 'same' zero-padding (P = (K - 1) / 2) solve during deep convolutional processing?",
+    "back": "It prevents boundary border pixel loss and preserves spatial spatial dimensions (H, W) across successive layers.",
+    "explanation": "Without padding, every 3x3 convolution loses 2 pixels along height and width, quickly collapsing small feature maps.",
+    "tags": ["padding", "receptive-field"]
+  },
+  {
+    "id": "conv:pooling-stride",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "mcq",
+    "front": "What is the primary function of Max Pooling layers with kernel size 2 and stride 2 in a classical vision pipeline?",
+    "options": [
+      "Select the maximum activation in each 2x2 window to halve spatial dimensions and provide local translation invariance",
+      "Invert feature map color channels to normalize RGB intensity",
+      "Multiply spatial activations by learned temperature logits",
+      "Add learnable positional embeddings to spatial patches"
+    ],
+    "correctIndex": 0,
+    "back": "Select the maximum activation in each 2x2 window to halve spatial dimensions and provide local translation invariance",
+    "explanation": "Max pooling downsamples resolution, reducing computational burden for later deeper layers while preserving dominant features.",
+    "tags": ["pooling", "invariance"]
+  },
+  {
+    "id": "conv:channel-depth",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "cloze",
+    "front": "A convolutional layer receiving C_in input channels requires each kernel filter to have depth equal to _____ in order to produce one output channel.",
+    "back": "C_in",
+    "explanation": "Each filter kernel has shape (K, K, C_in). It computes products across all input channels and sums them together.",
+    "tags": ["channels", "tensors"]
+  },
+  {
+    "id": "conv:1x1-pointwise",
+    "lessonSlug": "computer-vision/01-convolutions-kernels",
+    "type": "recall",
+    "front": "What does a 1x1 convolution (pointwise convolution) do to an input tensor of shape (C_in, H, W)?",
+    "back": "It computes linear combinations across channel depth at each spatial pixel location without mixing neighboring pixels.",
+    "explanation": "1x1 convolutions adjust channel capacity (projection/bottlenecks) at low compute cost, foundational to ResNet bottlenecks and Inception.",
+    "tags": ["pointwise", "bottlenecks"]
+  }
+]

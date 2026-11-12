@@ -239,6 +239,7 @@ export default async function LessonPage({
           toc={lesson.toc}
           headerSlot={headerSlot}
           afterProseSlot={afterProseSlot}
+          nextLesson={next ? { title: next.title, url: next.url } : null}
         >
           <MdxContent code={lesson.body} />
         </LessonShell>

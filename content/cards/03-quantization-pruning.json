@@ -1,0 +1,88 @@
+[
+  {
+    "id": "quant:symmetric-vs-asymmetric",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "recall",
+    "front": "What is the difference between symmetric and asymmetric uniform affine quantization?",
+    "back": "Symmetric quantization forces zero-point z = 0, mapping [-alpha, alpha] symmetrically around zero; asymmetric maps [min, max] with a nonzero integer zero-point z.",
+    "explanation": "Symmetric quantization eliminates zero-point arithmetic during matrix multiplication, making hardware INT8 GEMM tensor cores faster.",
+    "tags": ["quantization", "mlops", "int8"]
+  },
+  {
+    "id": "quant:ptq-vs-qat",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "mcq",
+    "front": "How does Post-Training Quantization (PTQ) differ fundamentally from Quantization-Aware Training (QAT)?",
+    "options": [
+      "PTQ calibrates scale factors on a small validation set without retraining, whereas QAT simulates quantization noise during training with straight-through estimators",
+      "PTQ permanently deletes 50% of model layers, while QAT doubles model parameters",
+      "PTQ runs exclusively on CPUs, while QAT requires TPU v4 pods",
+      "PTQ requires full knowledge of test labels, while QAT is purely unsupervised"
+    ],
+    "correctIndex": 0,
+    "back": "PTQ calibrates scale factors on a small validation set without retraining, whereas QAT simulates quantization noise during training with straight-through estimators",
+    "explanation": "QAT allows weights to adapt to rounding noise before deployment, preserving accuracy down to low bitwidths (e.g. INT4).",
+    "tags": ["ptq", "qat", "inference"]
+  },
+  {
+    "id": "quant:ste-gradient",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "cloze",
+    "front": "Because the round() function has zero gradient almost everywhere, QAT uses the Straight-Through Estimator (STE) which approximates d(round(w))/dw as _____ during backpropagation.",
+    "back": "1",
+    "explanation": "The STE passes upstream gradients directly through the rounding operator within clipping bounds [-clamp, clamp].",
+    "tags": ["ste", "gradients", "qat"]
+  },
+  {
+    "id": "quant:memory-footprint-reduction",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "recall",
+    "front": "Quantizing a 7-billion parameter language model from FP16 (16-bit) to INT4 (4-bit) reduces weight memory footprint from ~14 GB to approximately how many GB?",
+    "back": "Approximately 3.5 GB (a 4x reduction), enabling local execution on consumer GPUs with 4-8 GB VRAM.",
+    "explanation": "4 bits is 0.5 bytes per parameter. 7B * 0.5 bytes = 3.5 GB plus minimal scale and zero-point metadata.",
+    "tags": ["memory", "efficiency", "llms"]
+  },
+  {
+    "id": "quant:gptq-and-awq",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "mcq",
+    "front": "Why does Activation-Aware Weight Quantization (AWQ) protect salient weight channels from 4-bit precision degradation?",
+    "options": [
+      "It observes that only ~1% of activation channels exhibit large magnitude spikes, protecting those corresponding weights preserves output perplexity",
+      "It multiplies all weights by random orthogonal rotation matrices",
+      "It forces all weights in the MLP layers to equal exactly 1 or -1",
+      "It converts text prompts into binary tokens"
+    ],
+    "correctIndex": 0,
+    "back": "It observes that only ~1% of activation channels exhibit large magnitude spikes, protecting those corresponding weights preserves output perplexity",
+    "explanation": "Protecting the 1% most salient weights reduces quantization error dramatically without incurring the latency overhead of mixed precision.",
+    "tags": ["awq", "gptq", "activation-aware"]
+  },
+  {
+    "id": "quant:structured-vs-unstructured-pruning",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "recall",
+    "front": "Why does structured pruning (removing entire channels or attention heads) provide practical GPU speedups whereas unstructured pruning often requires specialized sparse kernels?",
+    "back": "Structured pruning produces smaller standard dense tensors that run directly on regular hardware GEMM libraries without sparse index lookups.",
+    "explanation": "Unstructured zeroing leaves irregular sparse patterns that standard tensor cores cannot accelerate without dedicated hardware support.",
+    "tags": ["pruning", "sparsity", "hardware"]
+  },
+  {
+    "id": "quant:dequantize-formula",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "cloze",
+    "front": "The affine dequantization formula recovering continuous floating-point approximation x_hat from integer q is x_hat = S * (q - _____).",
+    "back": "Z",
+    "explanation": "S is the float scale factor and Z is the integer zero-point aligning zero in the float range with an integer value.",
+    "tags": ["formulas", "affine"]
+  },
+  {
+    "id": "quant:kv-cache-quantization",
+    "lessonSlug": "mlops/03-quantization-pruning",
+    "type": "recall",
+    "front": "Why is KV-cache quantization (e.g. FP8 or INT8 KV-cache in vLLM) critical for long-context LLM serving?",
+    "back": "In long context inference, KV-cache memory scales linearly with sequence length and batch size, quickly surpassing the model weight memory itself.",
+    "explanation": "Quantizing keys and values doubles or quadruples maximum concurrent batch capacity without retraining model weights.",
+    "tags": ["kv-cache", "vllm", "long-context"]
+  }
+]

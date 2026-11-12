@@ -36,7 +36,6 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
   const pagefindRef = React.useRef<PagefindModule | null>(null);
 
   React.useEffect(() => {
-    if (!open || lessons.length > 0) return;
     let active = true;
     fetch('/data/search-index.json')
       .then((res) => (res.ok ? res.json() : []))
@@ -51,7 +50,7 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
     return () => {
       active = false;
     };
-  }, [open, lessons.length]);
+  }, []);
 
   React.useEffect(() => {
     if (!open || pagefindRef.current) return;
@@ -163,12 +162,18 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
   }, [query, open]);
 
   const handleSelect = (item: { url: string; isExternal?: boolean }) => {
-    onOpenChange(false);
-    setQuery('');
     if (item.isExternal) {
       window.open(item.url, '_blank', 'noopener,noreferrer');
-    } else {
-      router.push(item.url);
+      onOpenChange(false);
+      setQuery('');
+      return;
+    }
+    const targetUrl = item.url.startsWith('/') ? item.url : `/${item.url}`;
+    onOpenChange(false);
+    setQuery('');
+    router.push(targetUrl);
+    if (typeof window !== 'undefined') {
+      window.location.href = targetUrl;
     }
   };
 
@@ -238,7 +243,6 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
                   key={item.url}
                   role="option"
                   aria-selected={idx === activeIndex}
-                  onClick={() => handleSelect(item)}
                 >
                   <button
                     type="button"

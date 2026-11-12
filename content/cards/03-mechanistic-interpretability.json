@@ -1,0 +1,88 @@
+[
+  {
+    "id": "mechinterp:polysemanticity-cause",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "recall",
+    "front": "What is neuron polysemanticity, and why do neural networks learn polysemantic neurons?",
+    "back": "A single neuron activates on multiple unrelated semantic concepts because the model exploits superposition to represent more features than it has physical dimensions.",
+    "explanation": "If features are sparse in real data, an n-dimensional vector space can almost orthogonally pack far more than n features via superposition.",
+    "tags": ["superposition", "polysemanticity", "interpretability"]
+  },
+  {
+    "id": "mechinterp:sae-role",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "mcq",
+    "front": "How do Sparse Autoencoders (SAEs) disentangle superposed representations in Transformer residual streams?",
+    "back": "They expand d-dimensional activations into a higher-dimensional overcomplete dictionary using L1 sparsity penalties to isolate monosemantic latent directions",
+    "options": [
+      "They expand d-dimensional activations into a higher-dimensional overcomplete dictionary using L1 sparsity penalties to isolate monosemantic latent directions",
+      "They permanently prune attention heads that attend to punctuation tokens",
+      "They round all floating-point numbers to zero to prevent information leakage",
+      "They replace Softmax functions with Argmax during training"
+    ],
+    "correctIndex": 0,
+    "explanation": "By projecting up into an overcomplete basis (e.g. 16x or 32x dimensions) with an L1 or Top-K penalty, SAE latents isolate clean, single-concept features.",
+    "tags": ["sae", "monosemantic", "safety"]
+  },
+  {
+    "id": "mechinterp:linear-representation-hypothesis",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "cloze",
+    "front": "The Linear Representation Hypothesis posits that semantic concepts in deep models are represented geometrically as one-dimensional _____ in activation space.",
+    "back": "directions",
+    "explanation": "Linear probes (w^T x + b) can read out properties like sentiment, truthfulness, or entity gender from activation directions.",
+    "tags": ["linear-probe", "geometry"]
+  },
+  {
+    "id": "mechinterp:induction-heads",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "recall",
+    "front": "What two-head circuit mechanism enables 'induction heads' in Transformers to implement in-context few-shot copying?",
+    "back": "A previous-token head attends to the previous token, while an induction head attends back to where the current token appeared previously and copies what followed.",
+    "explanation": "Induction heads detect patterns like [A][B] ... [A] -> predict [B], forming the fundamental mechanistic substrate of in-context learning.",
+    "tags": ["circuits", "induction-heads", "in-context"]
+  },
+  {
+    "id": "mechinterp:activation-patching",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "recall",
+    "front": "How does activation patching (causal tracing) identify which specific head or layer is causally responsible for a model's factual answer?",
+    "back": "It substitutes (patches) clean activations into a corrupted run (or vice-versa) and measures the restoration of the correct output logit.",
+    "explanation": "Causal mediation analysis proves whether an activation is necessary and sufficient to produce a specific behavior.",
+    "tags": ["activation-patching", "causal-tracing"]
+  },
+  {
+    "id": "mechinterp:logit-lens",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "mcq",
+    "front": "What does the Logit Lens technique reveal about how Transformers form predictions across layers?",
+    "options": [
+      "Multiplying intermediate residual stream activations directly by the unembedding matrix W_U reveals how predictions evolve layer-by-layer",
+      "It displays the physical temperature of the GPU silicon during inference",
+      "It tests whether the model generates toxic words by injecting random characters",
+      "It measures the network bandwidth consumed by distributed tensor parallel workers"
+    ],
+    "correctIndex": 0,
+    "back": "Multiplying intermediate residual stream activations directly by the unembedding matrix W_U reveals how predictions evolve layer-by-layer",
+    "explanation": "Because the residual stream retains the same dimension throughout, W_U * x_l shows the vocabulary distribution the model would predict if cut off at layer l.",
+    "tags": ["logit-lens", "residual-stream"]
+  },
+  {
+    "id": "mechinterp:sparsity-loss",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "cloze",
+    "front": "Sparse Autoencoders train on residual activations x with reconstruction loss ||x - x_hat||^2 plus an _____ sparsity penalty lambda * sum |f_i| on hidden latents f.",
+    "back": "L1",
+    "explanation": "L1 regularization forces the vast majority of latent activations f_i to be exactly zero for any given input, enforcing sparsity.",
+    "tags": ["sparsity", "loss"]
+  },
+  {
+    "id": "mechinterp:steering-vectors",
+    "lessonSlug": "ai-safety/03-mechanistic-interpretability",
+    "type": "recall",
+    "front": "How can activation steering vectors be used to control model behavior (e.g. reducing sycophancy or hallucination) at inference time without fine-tuning weights?",
+    "back": "By extracting the concept direction vector v = mean(x_positive) - mean(x_negative) and adding alpha * v directly to the residual stream during forward passes.",
+    "explanation": "Steering nudges internal representations in activation space, directly shifting generated token probabilities toward desired attributes.",
+    "tags": ["steering", "alignment", "safety"]
+  }
+]

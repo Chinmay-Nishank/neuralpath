@@ -1,0 +1,88 @@
+[
+  {
+    "id": "capstone:engineering-lifecycle",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "recall",
+    "front": "What are the five disciplined lifecycle phases of a production ML engineering project from scratch to deployment?",
+    "back": "Problem formulation & metric definition, data hygiene & baseline benchmarking, model iteration & ablation, deployment packaging, and post-launch drift monitoring.",
+    "explanation": "Shipping production ML requires disciplined baselines (always establish a simple dumb baseline first) before investing in complex architectures.",
+    "tags": ["capstones", "engineering", "lifecycle"]
+  },
+  {
+    "id": "capstone:baseline-discipline",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "mcq",
+    "front": "Why must every machine learning project implement a trivial heuristic or simple linear baseline before training complex deep neural networks?",
+    "options": [
+      "To verify data integrity, quantify the true marginal gain of complex models, and detect label leakage early",
+      "Because deep networks cannot compile without a baseline checkpoint",
+      "To ensure GPU drivers are initialized with floating point numbers",
+      "To eliminate the need for cross-validation on test sets"
+    ],
+    "correctIndex": 0,
+    "back": "To verify data integrity, quantify the true marginal gain of complex models, and detect label leakage early",
+    "explanation": "If a sophisticated Transformer barely outperforms logistic regression on TF-IDF, the complexity and inference latency may not be justified.",
+    "tags": ["baselines", "methodology"]
+  },
+  {
+    "id": "capstone:train-test-leakage",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "cloze",
+    "front": "Fitting feature scalers, imputers, or tokenizers on the combined dataset before splitting causes data _____ which artificially inflates validation metrics.",
+    "back": "leakage",
+    "explanation": "Preprocessors must fit strictly on the training partition alone and only transform validation and test partitions.",
+    "tags": ["data-leakage", "validation"]
+  },
+  {
+    "id": "capstone:offline-vs-online-metric",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "recall",
+    "front": "Why do improvements in offline evaluation metrics (e.g. higher validation AUC or lower perplexity) sometimes fail to translate to online business impact?",
+    "back": "Offline datasets suffer from survivorship bias, distribution drift, delayed feedback loops, and user behavioral adaptations that static sets cannot reflect.",
+    "explanation": "Rigorous A/B testing or shadow deployments are necessary to confirm that offline metric improvements yield real-world efficacy.",
+    "tags": ["metrics", "ab-testing"]
+  },
+  {
+    "id": "capstone:reproducibility-checklist",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "mcq",
+    "front": "Which set of practices guarantees scientific reproducibility across machine learning experiments?",
+    "options": [
+      "Deterministic random seeding, pinned package lockfiles, dataset version hashes, and tracked experiment hyperparameters",
+      "Disabling GPU cache memory and deleting log files after every epoch",
+      "Using only random numbers for weight initialization without seeds",
+      "Training models exclusively in interactive terminal prompts without recording configs"
+    ],
+    "correctIndex": 0,
+    "back": "Deterministic random seeding, pinned package lockfiles, dataset version hashes, and tracked experiment hyperparameters",
+    "explanation": "Pinned environments and exact seeds allow collaborators and CI systems to replicate loss curves and benchmark figures reliably.",
+    "tags": ["reproducibility", "best-practices"]
+  },
+  {
+    "id": "capstone:overfitting-detection",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "cloze",
+    "front": "When training loss continues declining while validation loss begins climbing upwards, the model has entered the _____ regime.",
+    "back": "overfitting",
+    "explanation": "The model begins memorizing dataset noise rather than learning generalizable underlying patterns, signaling the need for early stopping or regularization.",
+    "tags": ["overfitting", "validation"]
+  },
+  {
+    "id": "capstone:latency-budget",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "recall",
+    "front": "What is the P99 latency SLA in real-time user-facing inference, and why is mean latency insufficient?",
+    "back": "P99 is the 99th percentile response time; mean latency conceals long tail stalls (GC pauses, queuing delays, KV-cache thrashing) that affect real users.",
+    "explanation": "A system with 50ms average latency might have 1,500ms P99 spikes. Production SLAs are almost always budgeted against P95 or P99.",
+    "tags": ["latency", "sla", "p99"]
+  },
+  {
+    "id": "capstone:ablation-study",
+    "lessonSlug": "capstones/01-capstone-playbook",
+    "type": "recall",
+    "front": "What is the purpose of an ablation study in a final Capstone research or engineering report?",
+    "back": "To systematically remove or disable individual components (e.g. data augmentation, attention heads, normalization) to measure each part's actual contribution.",
+    "explanation": "Ablations isolate which architectural innovations actually drove performance improvements versus what was merely redundant complexity.",
+    "tags": ["ablation", "scientific-method"]
+  }
+]

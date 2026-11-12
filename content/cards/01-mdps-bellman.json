@@ -1,0 +1,88 @@
+[
+  {
+    "id": "rl:mdp-five-tuple",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "recall",
+    "front": "What five components define a formal Markov Decision Process (MDP) tuple (S, A, P, R, gamma)?",
+    "back": "State space S, Action space A, Transition probability distribution P(s'|s,a), Reward function R(s,a), and discount factor gamma in [0, 1).",
+    "explanation": "MDPs formulate sequential decision-making under uncertainty where future states depend only on the current state and action.",
+    "tags": ["rl", "mdp", "bellman"]
+  },
+  {
+    "id": "rl:markov-property",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "mcq",
+    "front": "What does the Markov Property state regarding transition probabilities in a state s_t?",
+    "options": [
+      "Future state s_{t+1} depends only on current state s_t and action a_t, conditionally independent of past history",
+      "All rewards must be strictly non-negative integers",
+      "The agent must visit every state with uniform probability",
+      "Optimal policies must be completely non-deterministic"
+    ],
+    "correctIndex": 0,
+    "back": "Future state s_{t+1} depends only on current state s_t and action a_t, conditionally independent of past history",
+    "explanation": "The current state is a sufficient statistic of all past observations, allowing memoryless policy optimization.",
+    "tags": ["markov-property", "foundations"]
+  },
+  {
+    "id": "rl:bellman-expectation-v",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "cloze",
+    "front": "The Bellman Expectation Equation for value function V_pi(s) decomposes state value into immediate expected reward plus discounted future value: V_pi(s) = E[R_{t+1} + _____ * V_pi(S_{t+1}) | S_t = s].",
+    "back": "gamma",
+    "explanation": "The discount factor gamma in [0, 1) bounds infinite-horizon returns and models time-preference of rewards.",
+    "tags": ["bellman", "discount-factor"]
+  },
+  {
+    "id": "rl:q-function-definition",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "recall",
+    "front": "How does the action-value function Q_pi(s, a) differ from the state-value function V_pi(s)?",
+    "back": "Q_pi(s, a) gives the expected return from taking specific action a in state s, whereas V_pi(s) averages across all actions weighted by policy pi(a|s).",
+    "explanation": "Q-values allow model-free action selection via argmax_a Q(s, a) without requiring transition probabilities P(s'|s,a).",
+    "tags": ["q-function", "value-function"]
+  },
+  {
+    "id": "rl:bellman-optimality",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "recall",
+    "front": "Why is the Bellman Optimality Equation non-linear whereas the Bellman Expectation Equation is linear?",
+    "back": "The optimality equation replaces policy averaging with a non-linear max_a' operator over future actions: Q*(s, a) = R + gamma * max_a' Q*(s', a').",
+    "explanation": "This max operator makes systems of optimality equations unsolvable by simple matrix inversion, requiring dynamic programming or iterative Q-learning.",
+    "tags": ["bellman-optimality", "dynamic-programming"]
+  },
+  {
+    "id": "rl:discount-factor-role",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "mcq",
+    "front": "What happens in continuing (non-terminating) environments if the discount factor gamma is set to 1.0?",
+    "options": [
+      "Cumulative returns can diverge to infinity, making value comparison mathematically ill-conditioned",
+      "The optimal policy collapses to a constant zero action",
+      "The agent ignores all future rewards and acts completely greedily on t=1",
+      "The state space compresses into a single dimension"
+    ],
+    "correctIndex": 0,
+    "back": "Cumulative returns can diverge to infinity, making value comparison mathematically ill-conditioned",
+    "explanation": "Setting gamma < 1 guarantees geometric series convergence sum_{k=0}^infty gamma^k * R_max = R_max / (1 - gamma).",
+    "tags": ["discount-factor", "convergence"]
+  },
+  {
+    "id": "rl:policy-definition",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "cloze",
+    "front": "A stochastic policy pi(a|s) defines a probability distribution over _____ given the current state s.",
+    "back": "actions",
+    "explanation": "During RL, the agent updates policy parameters to maximize expected discounted cumulative reward.",
+    "tags": ["policy", "reinforcement-learning"]
+  },
+  {
+    "id": "rl:policy-iteration-vs-value-iteration",
+    "lessonSlug": "reinforcement-learning/01-mdps-bellman",
+    "type": "recall",
+    "front": "What is the difference between Policy Iteration and Value Iteration in Dynamic Programming?",
+    "back": "Policy Iteration alternates full policy evaluation until convergence with policy improvement; Value Iteration updates values with a single Bellman backup per step.",
+    "explanation": "Value Iteration merges evaluation and improvement into one combined update: V_{k+1}(s) = max_a [R(s,a) + gamma * sum P(s'|s,a) V_k(s')].",
+    "tags": ["dynamic-programming", "value-iteration"]
+  }
+]
