@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
-import { getLessonsForPath, getModules, getSearchableLessons } from '@/lib/content';
+import {
+  getLessonsForPath,
+  getModules,
+  getSearchableLessons,
+} from '@/lib/content';
 import { DashboardClient } from '@/components/progress/dashboard-client';
 
 export const metadata: Metadata = {

@@ -37,18 +37,22 @@ export async function POST(req: NextRequest) {
 
   const prisma = getPrisma();
   if (prisma) {
-    const data = parsed.data;
-    await prisma.feedback.create({
-      data:
-        data.kind === 'newsletter'
-          ? { kind: 'newsletter', email: data.email }
-          : {
-              kind: 'lesson_feedback',
-              lessonSlug: data.lessonSlug,
-              helpful: data.helpful,
-              comment: data.comment,
-            },
-    });
+    try {
+      const data = parsed.data;
+      await prisma.feedback.create({
+        data:
+          data.kind === 'newsletter'
+            ? { kind: 'newsletter', email: data.email }
+            : {
+                kind: 'lesson_feedback',
+                lessonSlug: data.lessonSlug,
+                helpful: data.helpful,
+                comment: data.comment,
+              },
+      });
+    } catch {
+      // Optional database unreachable or pending migration — degrade gracefully without failing UI
+    }
   }
 
   return NextResponse.json({ ok: true });

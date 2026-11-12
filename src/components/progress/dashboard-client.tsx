@@ -2,14 +2,31 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Award, Bookmark, Flame, NotebookPen, ArrowRight, CheckCircle2 } from 'lucide-react';
+import {
+  Award,
+  Bookmark,
+  Flame,
+  NotebookPen,
+  ArrowRight,
+  CheckCircle2,
+  Brain,
+  Target,
+  Download,
+  Upload,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/ui/progress';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useProgress } from '@/components/progress/progress-provider';
+import { useReview } from '@/components/review/review-provider';
 import type { ModuleMeta, SearchableLessonSummary } from '@/lib/content';
-import type { LearningPathId } from '@/lib/progress';
+import {
+  calculateQuizStats,
+  getTodayIsoDate,
+  validateImportedState,
+  type LearningPathId,
+} from '@/lib/progress';
 
 export function DashboardClient({
   modules,
@@ -20,7 +37,13 @@ export function DashboardClient({
   lessons: SearchableLessonSummary[];
   pathLessons: Record<LearningPathId, string[]>;
 }) {
-  const { state, hydrated, streakDays } = useProgress();
+  const { state, hydrated, streakDays, importLearningState } = useProgress();
+  const { cardIndex, dueCount, hydrated: reviewHydrated } = useReview();
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [backupNotice, setBackupNotice] = React.useState<{
+    kind: 'ok' | 'err';
+    text: string;
+  } | null>(null);
 
   const lessonMap = React.useMemo(
     () => new Map(lessons.map((l) => [l.routeId, l])),
@@ -31,6 +54,46 @@ export function DashboardClient({
   const lastVisited = state.lastVisitedLesson
     ? lessonMap.get(state.lastVisitedLesson)
     : lessons[0];
+
+  const quizStats = React.useMemo(
+    () => calculateQuizStats(state.completedLessons),
+    [state.completedLessons]
+  );
+
+  const today = React.useMemo(() => getTodayIsoDate(), []);
+
+  const handleExportBackup = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `neuralpath-progress-${today}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setBackupNotice({ kind: 'ok', text: 'Exported local progress JSON backup.' });
+  };
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as unknown;
+      const valid = validateImportedState(parsed);
+      if (!valid) {
+        setBackupNotice({
+          kind: 'err',
+          text: 'File is not a valid NeuralPath progress backup.',
+        });
+        return;
+      }
+      importLearningState(valid);
+      setBackupNotice({ kind: 'ok', text: 'Progress backup restored cleanly.' });
+    } catch {
+      setBackupNotice({ kind: 'err', text: 'Unable to parse JSON backup file.' });
+    }
+  };
 
   const earnedBadges = modules.filter((mod) => {
     const modLessons = lessons.filter((l) => l.module === mod.id);
@@ -115,6 +178,110 @@ export function DashboardClient({
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recommended Next + Earned Badges */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Target className="h-4 w-4 text-accent" aria-hidden="true" />
+              Quiz Mastery
+            </CardTitle>
+            <CardDescription>Best recorded score per lesson check</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="font-mono text-2xl font-bold text-primary">
+              {quizStats.accuracyPercent !== null ? `${quizStats.accuracyPercent}%` : '—'}
+            </div>
+            <p className="text-xs text-primary-secondary">
+              {quizStats.totalQuestions > 0
+                ? `${quizStats.totalCorrect} / ${quizStats.totalQuestions} questions across ${quizStats.attemptedQuizzes} quiz${quizStats.attemptedQuizzes === 1 ? '' : 'zes'}`
+                : 'Submit any lesson quiz to track mastery accuracy.'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col justify-between">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Brain className="h-4 w-4 text-accent" aria-hidden="true" />
+              Active-Recall Queue
+            </CardTitle>
+            <CardDescription>FSRS spaced-repetition deck from completed lessons</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono text-2xl font-bold text-primary">
+                {hydrated && reviewHydrated ? `${dueCount} due` : '—'}
+              </div>
+              <p className="text-xs text-primary-secondary">
+                {cardIndex.length} authored review cards
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/practice"
+                className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+              >
+                Mixed Practice
+              </Link>
+              <Link
+                href="/review"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <span>Review Now</span>
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col justify-between">
+          <CardHeader>
+            <CardTitle className="text-base">Portable Progress Backup</CardTitle>
+            <CardDescription>
+              Export or restore streaks, quiz scores, flashcards, and notes as JSON.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={handleExportBackup}>
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Export JSON</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Restore Backup</span>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                aria-label="Restore NeuralPath progress JSON backup"
+                className="sr-only"
+                onChange={handleRestoreFile}
+              />
+            </div>
+            {backupNotice && (
+              <p
+                role={backupNotice.kind === 'err' ? 'alert' : 'status'}
+                className={
+                  backupNotice.kind === 'err'
+                    ? 'text-xs font-medium text-danger'
+                    : 'text-xs font-medium text-success'
+                }
+              >
+                {backupNotice.text}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

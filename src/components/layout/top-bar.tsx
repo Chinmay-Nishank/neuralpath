@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Search, Sun, Moon, Menu, X, Compass } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button, IconButton } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { useProgress } from '@/components/progress/progress-provider';
+import { useReview } from '@/components/review/review-provider';
 import type { LearningPathId } from '@/lib/progress';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +21,21 @@ const CommandPalette = dynamic(
 
 const NAV_LINKS = [
   { href: '/curriculum', label: 'Curriculum' },
+  { href: '/lab', label: 'Lab' },
   { href: '/playgrounds', label: 'Playgrounds' },
+  { href: '/practice', label: 'Practice' },
+  { href: '/review', label: 'Review' },
+  { href: '/placement', label: 'Placement' },
+  { href: '/dashboard', label: 'Dashboard' },
+];
+
+const MOBILE_NAV_LINKS = [
+  { href: '/curriculum', label: 'Curriculum' },
+  { href: '/lab', label: 'From-Scratch Lab' },
+  { href: '/playgrounds', label: 'Playgrounds' },
+  { href: '/practice', label: 'Practice' },
+  { href: '/review', label: 'Review' },
+  { href: '/placement', label: 'Diagnostic Placement' },
   { href: '/glossary', label: 'Glossary' },
   { href: '/cheatsheets', label: 'Cheatsheets' },
   { href: '/dashboard', label: 'Dashboard' },
@@ -29,6 +45,7 @@ export function TopBar({ totalLessons }: { totalLessons: number }) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const { state, setActivePath, streakDays } = useProgress();
+  const { hydrated: reviewHydrated, dueCount } = useReview();
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [searchMounted, setSearchMounted] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -111,13 +128,22 @@ export function TopBar({ totalLessons }: { totalLessons: number }) {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      'rounded-sm px-2.5 py-1.5 text-sm transition-colors',
+                      'inline-flex items-center gap-1 rounded-sm px-2 py-1.5 text-[13px] transition-colors',
                       active
                         ? 'bg-subtle font-medium text-primary'
                         : 'text-primary-secondary hover:bg-subtle/60 hover:text-primary'
                     )}
                   >
-                    {link.label}
+                    <span>{link.label}</span>
+                    {link.href === '/review' && reviewHydrated && dueCount > 0 && (
+                      <Badge
+                        variant="accent"
+                        className="px-1.5 py-0 text-[11px] leading-4 tabular-nums"
+                        aria-label={`${dueCount} due cards`}
+                      >
+                        {dueCount}
+                      </Badge>
+                    )}
                   </Link>
                 );
               })}
@@ -208,32 +234,49 @@ export function TopBar({ totalLessons }: { totalLessons: number }) {
         {mobileMenuOpen && (
           <nav
             aria-label="Mobile Navigation"
-            className="border-t border-hairline bg-surface px-4 py-3 lg:hidden"
+            className="border-t border-hairline bg-surface/98 backdrop-blur-md px-4 py-4 lg:hidden shadow-lg animate-in fade-in-50 duration-150"
           >
             <div className="flex flex-col gap-1">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-sm px-3 py-2 text-sm font-medium text-primary hover:bg-subtle"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="mt-2 border-t border-hairline pt-2">
-                <label className="mb-1 block text-xs text-primary-muted" htmlFor="mobile-path-select">
-                  Learning Path
+              {MOBILE_NAV_LINKS.map((link) => {
+                const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      'flex min-h-[44px] items-center justify-between rounded-md px-3.5 py-2.5 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-accent-soft text-accent font-semibold'
+                        : 'text-primary hover:bg-subtle'
+                    )}
+                  >
+                    <span>{link.label}</span>
+                    {link.href === '/review' && reviewHydrated && dueCount > 0 && (
+                      <Badge
+                        variant="accent"
+                        className="px-1.5 py-0 text-[11px] leading-4 tabular-nums"
+                        aria-label={`${dueCount} due cards`}
+                      >
+                        {dueCount}
+                      </Badge>
+                    )}
+                  </Link>
+                );
+              })}
+              <div className="mt-3 border-t border-hairline pt-3">
+                <label className="mb-1 block text-xs text-primary-muted font-medium" htmlFor="mobile-path-select">
+                  Learning Track
                 </label>
                 <select
                   id="mobile-path-select"
                   value={state.activePath}
                   onChange={(e) => setActivePath(e.target.value as LearningPathId)}
-                  className="h-9 w-full rounded-sm border border-strong bg-canvas px-2 text-xs text-primary"
+                  className="h-10 w-full rounded-md border border-hairline bg-canvas px-3 text-xs text-primary"
                 >
-                  <option value="beginner">Beginner Path</option>
-                  <option value="practitioner">Practitioner Path</option>
-                  <option value="researcher">Researcher Path</option>
+                  <option value="beginner">Beginner Path (From Scratch)</option>
+                  <option value="practitioner">Practitioner Path (Deep Learning &amp; LLMs)</option>
+                  <option value="researcher">Researcher Path (Frontier Architectures)</option>
                 </select>
               </div>
             </div>

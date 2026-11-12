@@ -6,7 +6,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
     '',
     '/curriculum',
+    '/lab',
     '/playgrounds',
+    '/practice',
+    '/review',
+    '/placement',
     '/glossary',
     '/cheatsheets',
     '/dashboard',

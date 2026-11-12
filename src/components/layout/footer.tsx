@@ -45,8 +45,10 @@ export function Footer() {
           <div className="font-semibold text-primary">Learn</div>
           <ul className="space-y-0.5 text-primary-secondary">
             <li><Link href="/curriculum" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Curriculum Map</Link></li>
-            <li><Link href="/learn/foundations/01-what-is-a-model" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Start from Zero</Link></li>
-            <li><Link href="/onboarding" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Skill Path Quiz</Link></li>
+            <li><Link href="/placement" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Diagnostic Placement</Link></li>
+            <li><Link href="/lab" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">From-Scratch Python Lab</Link></li>
+            <li><Link href="/practice" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Mixed Practice Arena</Link></li>
+            <li><Link href="/review" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Flashcard Review</Link></li>
             <li><Link href="/dashboard" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Progress Dashboard</Link></li>
           </ul>
         </div>
@@ -54,7 +56,7 @@ export function Footer() {
         <div className="space-y-2 text-xs">
           <div className="font-semibold text-primary">Reference</div>
           <ul className="space-y-0.5 text-primary-secondary">
-            <li><Link href="/playgrounds" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Interactive Playgrounds</Link></li>
+            <li><Link href="/playgrounds" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Interactive 3D Playgrounds</Link></li>
             <li><Link href="/glossary" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">ML/AI Glossary</Link></li>
             <li><Link href="/cheatsheets" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">PDF Cheatsheets</Link></li>
             <li><Link href="/search" className="inline-flex min-h-[26px] items-center py-1 hover:text-primary">Full-Text Search</Link></li>

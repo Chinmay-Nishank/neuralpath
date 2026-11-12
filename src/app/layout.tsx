@@ -26,10 +26,12 @@ const fontMono = localFont({
 });
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { ProgressProvider } from '@/components/progress/progress-provider';
+import { ReviewProvider } from '@/components/review/review-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { TopBar } from '@/components/layout/top-bar';
 import { Footer } from '@/components/layout/footer';
 import { ConsentBanner } from '@/components/layout/consent-banner';
+import { getCardIndex } from '@/lib/cards';
 import { getAllLessons } from '@/lib/content';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -72,6 +74,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const totalLessons = getAllLessons().length;
+  const cardIndex = getCardIndex();
 
   return (
     <html
@@ -89,14 +92,16 @@ export default function RootLayout({
 
         <ThemeProvider>
           <ProgressProvider>
-            <ToastProvider>
-              <TopBar totalLessons={totalLessons} />
-              <main id="main-content" className="flex-1">
-                {children}
-              </main>
-              <Footer />
-              <ConsentBanner />
-            </ToastProvider>
+            <ReviewProvider cardIndex={cardIndex}>
+              <ToastProvider>
+                <TopBar totalLessons={totalLessons} />
+                <main id="main-content" className="flex-1">
+                  {children}
+                </main>
+                <Footer />
+                <ConsentBanner />
+              </ToastProvider>
+            </ReviewProvider>
           </ProgressProvider>
         </ThemeProvider>
       </body>

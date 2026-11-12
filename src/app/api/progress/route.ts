@@ -29,16 +29,20 @@ export async function GET() {
     return NextResponse.json({ synced: false, mode: 'local' });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    include: { progress: true, bookmarks: true, notes: true },
-  });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: { progress: true, bookmarks: true, notes: true },
+    });
 
-  return NextResponse.json({
-    synced: true,
-    mode: 'database',
-    user,
-  });
+    return NextResponse.json({
+      synced: true,
+      mode: 'database',
+      user,
+    });
+  } catch {
+    return NextResponse.json({ synced: false, mode: 'local' });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -60,52 +64,56 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ synced: false, mode: 'local' });
   }
 
-  const user = await prisma.user.upsert({
-    where: { email: session.user.email },
-    update: {},
-    create: {
-      email: session.user.email,
-      name: session.user.name ?? undefined,
-      image: session.user.image ?? undefined,
-    },
-  });
-
-  const payload = parsed.data;
-  if (payload.type === 'complete') {
-    await prisma.lessonProgress.upsert({
-      where: { userId_lessonSlug: { userId: user.id, lessonSlug: payload.lessonSlug } },
+  try {
+    const user = await prisma.user.upsert({
+      where: { email: session.user.email },
       update: {},
-      create: { userId: user.id, lessonSlug: payload.lessonSlug },
+      create: {
+        email: session.user.email,
+        name: session.user.name ?? undefined,
+        image: session.user.image ?? undefined,
+      },
     });
-    if (typeof payload.quizScore === 'number' && typeof payload.totalQuestions === 'number') {
-      await prisma.quizAttempt.create({
-        data: {
-          userId: user.id,
-          lessonSlug: payload.lessonSlug,
-          score: payload.quizScore,
-          total: payload.totalQuestions,
-        },
-      });
-    }
-  } else if (payload.type === 'bookmark') {
-    const existing = await prisma.bookmark.findUnique({
-      where: { userId_lessonSlug: { userId: user.id, lessonSlug: payload.lessonSlug } },
-    });
-    if (existing) {
-      await prisma.bookmark.delete({ where: { id: existing.id } });
-    } else {
-      await prisma.bookmark.create({
-        data: { userId: user.id, lessonSlug: payload.lessonSlug },
-      });
-    }
-  } else if (payload.type === 'note') {
-    await prisma.lessonNote.upsert({
-      where: { userId_lessonSlug: { userId: user.id, lessonSlug: payload.lessonSlug } },
-      update: { content: payload.content },
-      create: { userId: user.id, lessonSlug: payload.lessonSlug, content: payload.content },
-    });
-  }
 
-  return NextResponse.json({ synced: true, mode: 'database' });
+    const payload = parsed.data;
+    if (payload.type === 'complete') {
+      await prisma.lessonProgress.upsert({
+        where: { userId_lessonSlug: { userId: user.id, lessonSlug: payload.lessonSlug } },
+        update: {},
+        create: { userId: user.id, lessonSlug: payload.lessonSlug },
+      });
+      if (typeof payload.quizScore === 'number' && typeof payload.totalQuestions === 'number') {
+        await prisma.quizAttempt.create({
+          data: {
+            userId: user.id,
+            lessonSlug: payload.lessonSlug,
+            score: payload.quizScore,
+            total: payload.totalQuestions,
+          },
+        });
+      }
+    } else if (payload.type === 'bookmark') {
+      const existing = await prisma.bookmark.findUnique({
+        where: { userId_lessonSlug: { userId: user.id, lessonSlug: payload.lessonSlug } },
+      });
+      if (existing) {
+        await prisma.bookmark.delete({ where: { id: existing.id } });
+      } else {
+        await prisma.bookmark.create({
+          data: { userId: user.id, lessonSlug: payload.lessonSlug },
+        });
+      }
+    } else if (payload.type === 'note') {
+      await prisma.lessonNote.upsert({
+        where: { userId_lessonSlug: { userId: user.id, lessonSlug: payload.lessonSlug } },
+        update: { content: payload.content },
+        create: { userId: user.id, lessonSlug: payload.lessonSlug, content: payload.content },
+      });
+    }
+
+    return NextResponse.json({ synced: true, mode: 'database' });
+  } catch {
+    return NextResponse.json({ synced: false, mode: 'local' });
+  }
 }
 

@@ -1,10 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useProgress } from '@/components/progress/progress-provider';
 
 export function ConsentBanner() {
+  const pathname = usePathname();
   const { state, hydrated, setAnalyticsConsent } = useProgress();
 
   React.useEffect(() => {
@@ -17,7 +19,9 @@ export function ConsentBanner() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  if (!hydrated || state.analyticsConsent !== 'pending') return null;
+  if (!hydrated || state.analyticsConsent !== 'pending' || pathname.startsWith('/review')) {
+    return null;
+  }
 
   return (
     <aside

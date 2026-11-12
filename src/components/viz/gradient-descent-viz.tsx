@@ -35,7 +35,7 @@ export interface GradientDescentVizProps {
 export function GradientDescentViz({ preset = 'bowl' }: GradientDescentVizProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [landscape, setLandscape] = React.useState<LandscapeId>(preset);
-  const [viewMode, setViewMode] = React.useState<'2d' | '3d'>('2d');
+  const [viewMode, setViewMode] = React.useState<'2d' | '3d'>('3d');
   const [lr, setLr] = React.useState(0.14);
   const [momentum, setMomentum] = React.useState(0.85);
   const [playing, setPlaying] = React.useState(false);

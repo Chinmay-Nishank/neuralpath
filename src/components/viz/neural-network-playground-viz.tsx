@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import * as tf from '@tensorflow/tfjs';
 import { VizShell } from './viz-shell';
 import { Select } from '@/components/ui/select';
@@ -8,6 +9,18 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/table';
 import { usePrefersReducedMotion } from './use-reduced-motion';
+
+const NeuralNetwork3DCanvas = dynamic(
+  () => import('./neural-network-3d').then((m) => m.NeuralNetwork3DCanvas),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[340px] w-full items-center justify-center rounded-sm border border-hairline bg-[#0B0E14] font-mono text-xs text-[#A6B0C3]">
+        Loading 3D neural manifold...
+      </div>
+    ),
+  }
+);
 
 type NnDatasetId = 'xor' | 'circle' | 'spiral';
 type ActivationId = 'tanh' | 'relu' | 'sigmoid';
@@ -48,6 +61,7 @@ function makeNnDataset(kind: NnDatasetId): DataRow[] {
 
 export function NeuralNetworkPlaygroundViz() {
   const reducedMotion = usePrefersReducedMotion();
+  const [viewMode, setViewMode] = React.useState<'3d' | '2d'>('3d');
   const [dataset, setDataset] = React.useState<NnDatasetId>('xor');
   const [activation, setActivation] = React.useState<ActivationId>('tanh');
   const [hiddenLayers, setHiddenLayers] = React.useState<number[]>([4, 3]);
@@ -183,6 +197,29 @@ export function NeuralNetworkPlaygroundViz() {
       }
       controls={
         <div className="space-y-4">
+          <div
+            role="group"
+            aria-label="Neural network visualization mode"
+            className="grid grid-cols-2 gap-1 rounded-sm border border-hairline bg-subtle p-1"
+          >
+            <Button
+              size="sm"
+              variant={viewMode === '3d' ? 'outline' : 'ghost'}
+              aria-pressed={viewMode === '3d'}
+              onClick={() => setViewMode('3d')}
+            >
+              3D Surface
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === '2d' ? 'outline' : 'ghost'}
+              aria-pressed={viewMode === '2d'}
+              onClick={() => setViewMode('2d')}
+            >
+              2D Blueprint
+            </Button>
+          </div>
+
           <Select
             label="Dataset"
             value={dataset}
@@ -285,7 +322,10 @@ export function NeuralNetworkPlaygroundViz() {
         </div>
       }
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      {viewMode === '3d' ? (
+        <NeuralNetwork3DCanvas layerCounts={layerCounts} gridProbs={gridProbs} data={data} />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
         {/* Network Topology SVG */}
         <div className="rounded-sm border border-hairline bg-canvas p-3">
           <div className="mb-1 text-xs font-medium text-primary-secondary">
@@ -384,6 +424,7 @@ export function NeuralNetworkPlaygroundViz() {
           </svg>
         </div>
       </div>
+      )}
     </VizShell>
   );
 }

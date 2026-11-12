@@ -7,8 +7,7 @@ export type AnalyticsEventName =
   | 'lesson_complete'
   | 'code_run'
   | 'quiz_submit'
-  | 'viz_interact'
-  | 'tutor_ask';
+  | 'viz_interact';
 
 declare global {
   interface Window {

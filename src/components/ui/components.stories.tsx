@@ -30,7 +30,7 @@ export const ButtonsAndBadges: StoryObj = {
         <Button variant="danger">Danger</Button>
         <Button loading>Loading</Button>
         <Button disabled>Disabled</Button>
-        <IconButton label="Ask Tutor" variant="outline">
+        <IconButton label="Web Search" variant="outline">
           <Sparkles className="h-4 w-4" />
         </IconButton>
       </div>

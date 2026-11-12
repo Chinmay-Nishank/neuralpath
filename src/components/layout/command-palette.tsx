@@ -2,10 +2,11 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, BookOpen, Sparkles, ArrowRight } from 'lucide-react';
+import { Search, BookOpen, Globe, ArrowRight, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
 import { Badge } from '@/components/ui/badge';
+import { buildGoogleSearchUrl } from '@/lib/google-search';
 import type { SearchableLessonSummary } from '@/lib/content';
 
 interface PagefindModule {
@@ -57,13 +58,12 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
     let active = true;
     async function loadPagefind() {
       try {
-        // Dynamically load Pagefind from production static build output when present
         const pfUrl = '/_pagefind/pagefind.js';
         const mod = (await import(/* webpackIgnore: true */ pfUrl)) as PagefindModule;
         await mod.init();
         if (active) pagefindRef.current = mod;
       } catch {
-        // In dev mode or before postbuild, fall back seamlessly to instant metadata search
+        // Fall back seamlessly to metadata search in dev mode
       }
     }
     void loadPagefind();
@@ -114,12 +114,12 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
           l.moduleTitle.toLowerCase().includes(q) ||
           l.tags.some((t) => t.toLowerCase().includes(q))
       )
-      .slice(0, 10);
+      .slice(0, 8);
   }, [lessons, query]);
 
   const combinedResults = React.useMemo(() => {
     const seen = new Set<string>();
-    const items: Array<{ url: string; title: string; subtitle: string; badge?: string }> = [];
+    const items: Array<{ url: string; title: string; subtitle: string; badge?: string; isExternal?: boolean }> = [];
 
     for (const l of localMatches) {
       if (seen.has(l.url)) continue;
@@ -144,17 +144,32 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
       });
     }
 
-    return items.slice(0, 10);
-  }, [localMatches, pagefindResults]);
+    // Always append Google Web Search action when user types a query
+    if (query.trim()) {
+      items.push({
+        url: buildGoogleSearchUrl(query.trim(), 'web', true),
+        title: `Search Google for "${query.trim()}"`,
+        subtitle: 'Search ML & AI articles, docs, and research papers on Google',
+        badge: 'Google',
+        isExternal: true,
+      });
+    }
+
+    return items;
+  }, [localMatches, pagefindResults, query]);
 
   React.useEffect(() => {
     setActiveIndex(0);
   }, [query, open]);
 
-  const handleNavigate = (url: string) => {
+  const handleSelect = (item: { url: string; isExternal?: boolean }) => {
     onOpenChange(false);
     setQuery('');
-    router.push(url);
+    if (item.isExternal) {
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+    } else {
+      router.push(item.url);
+    }
   };
 
   const onInputKeyDown = (e: React.KeyboardEvent) => {
@@ -168,10 +183,11 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
       const target = combinedResults[activeIndex];
       if (target) {
         e.preventDefault();
-        handleNavigate(target.url);
+        handleSelect(target);
       } else if (query.trim()) {
         e.preventDefault();
-        handleNavigate(`/search?q=${encodeURIComponent(query.trim())}`);
+        window.open(buildGoogleSearchUrl(query.trim(), 'web', true), '_blank', 'noopener,noreferrer');
+        onOpenChange(false);
       }
     }
   };
@@ -180,7 +196,7 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 overflow-hidden max-w-2xl" hideCloseButton>
         <DialogHeader className="sr-only">
-          <DialogTitle>Search NeuralPath curriculum</DialogTitle>
+          <DialogTitle>Search NeuralPath curriculum &amp; Google</DialogTitle>
         </DialogHeader>
         <div className="flex items-center gap-3 border-b border-hairline px-4 py-3">
           <Search className="h-4 w-4 shrink-0 text-primary-muted" aria-hidden="true" />
@@ -190,7 +206,7 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="Search lessons, algorithms, math concepts (e.g., attention, LoRA, gradient)..."
+            placeholder="Search lessons, algorithms, or press Enter to search Google..."
             aria-label="Search lessons and concepts"
             className="w-full bg-transparent text-sm text-primary placeholder:text-primary-muted focus:outline-none"
           />
@@ -200,31 +216,62 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
         <div className="max-h-[380px] overflow-y-auto p-2">
           {combinedResults.length === 0 ? (
             <div className="py-10 text-center text-sm text-primary-secondary">
-              No lessons matched &ldquo;{query}&rdquo;. Try searching &ldquo;transformer&rdquo;,
-              &ldquo;regression&rdquo;, or &ldquo;PPO&rdquo;.
+              <p>No lessons matched &ldquo;{query}&rdquo;.</p>
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.open(buildGoogleSearchUrl(query.trim(), 'web', true), '_blank', 'noopener,noreferrer');
+                    onOpenChange(false);
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 font-medium text-accent hover:underline"
+                >
+                  <Globe className="h-4 w-4" />
+                  <span>Search Google for &ldquo;{query}&rdquo; →</span>
+                </button>
+              )}
             </div>
           ) : (
             <ul role="listbox" aria-label="Search results" className="space-y-1">
               {combinedResults.map((item, idx) => (
-                <li key={item.url} role="option" aria-selected={idx === activeIndex}>
+                <li
+                  key={item.url}
+                  role="option"
+                  aria-selected={idx === activeIndex}
+                  onClick={() => handleSelect(item)}
+                >
                   <button
                     type="button"
-                    onClick={() => handleNavigate(item.url)}
+                    onClick={() => handleSelect(item)}
                     onMouseEnter={() => setActiveIndex(idx)}
                     className={`flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2.5 text-left transition-colors ${
-                      idx === activeIndex ? 'bg-subtle text-primary' : 'text-primary-secondary hover:bg-subtle/60'
+                      idx === activeIndex
+                        ? 'bg-subtle text-primary'
+                        : 'text-primary-secondary hover:bg-subtle/60'
                     }`}
                   >
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                      {item.isExternal ? (
+                        <Globe className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                      ) : (
+                        <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                      )}
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-primary">{item.title}</div>
                         <div className="truncate text-xs text-primary-muted">{item.subtitle}</div>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {item.badge && <Badge variant="neutral">{item.badge}</Badge>}
-                      <ArrowRight className="h-3.5 w-3.5 text-primary-muted" aria-hidden="true" />
+                      {item.badge && (
+                        <Badge variant={item.isExternal ? 'accent' : 'neutral'}>
+                          {item.badge}
+                        </Badge>
+                      )}
+                      {item.isExternal ? (
+                        <ExternalLink className="h-3.5 w-3.5 text-primary-muted" aria-hidden="true" />
+                      ) : (
+                        <ArrowRight className="h-3.5 w-3.5 text-primary-muted" aria-hidden="true" />
+                      )}
                     </div>
                   </button>
                 </li>
@@ -235,19 +282,21 @@ export function CommandPalette({ open, onOpenChange, lessons: initialLessons }: 
 
         <div className="flex items-center justify-between border-t border-hairline bg-subtle/60 px-4 py-2 text-xs text-primary-muted">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-            Navigate with ↑ ↓ and Enter
+            <Globe className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+            Curriculum + Google Search
           </span>
           <button
             type="button"
-            onClick={() => handleNavigate(`/search?q=${encodeURIComponent(query)}`)}
+            onClick={() => {
+              onOpenChange(false);
+              router.push(`/search?q=${encodeURIComponent(query)}`);
+            }}
             className="font-medium text-accent hover:underline"
           >
-            Open full search page
+            Open search page
           </button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "gradient-descent:steepest-direction",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "recall",
+    "front": "Which direction on a differentiable loss surface does the gradient vector ∇_θ L(θ_t) point, and why do we subtract it?",
+    "back": "The gradient points strictly uphill (direction of steepest ascent), so subtracting η ∇_θ L(θ_t) moves parameters downhill toward lower loss.",
+    "explanation": "Like walking downhill in fog, feeling the upward slope under your feet tells you to step in the opposite direction: θ_{t+1} = θ_t − η ∇_θ L(θ_t).",
+    "tags": ["intuition", "calculus"]
+  },
+  {
+    "id": "gradient-descent:lr-too-high",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "mcq",
+    "front": "Training loss oscillates upward and blows up to NaN right after you increase the learning rate η. What is the geometric cause?",
+    "options": [
+      "Steps overshoot across steep valley walls and land higher up the opposite slope",
+      "The gradient norm shrinks below floating-point precision",
+      "Momentum decayed to zero",
+      "Bias correction over-amplified the bias parameters"
+    ],
+    "correctIndex": 0,
+    "back": "Steps overshoot across steep valley walls and land higher up the opposite slope",
+    "explanation": "When η exceeds 2 / L_max along the steepest curvature axis, every update overshoots the valley floor and climbs higher on the opposite wall.",
+    "tags": ["learning-rate", "divergence"]
+  },
+  {
+    "id": "gradient-descent:anisotropic-ravine",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "recall",
+    "front": "Why is vanilla SGD painfully slow in an ill-conditioned ravine where one axis is steep and another is nearly flat?",
+    "back": "A single global learning rate η must stay tiny enough not to diverge along the steep axis, which forces progress along the shallow valley floor to crawl.",
+    "explanation": "Feature scaling (or adaptive per-parameter optimizers) balances curvature across dimensions so larger steps remain safe.",
+    "tags": ["ravine", "feature-scaling"]
+  },
+  {
+    "id": "gradient-descent:feature-scaling",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "cloze",
+    "front": "When one input feature has 50× larger variance than another, wrapping inputs in _____ reshapes the anisotropic ravine into a spherical bowl for SGDRegressor.",
+    "back": "StandardScaler",
+    "explanation": "Standardizing inputs to zero mean and unit variance removes artificial elongation along coordinate axes.",
+    "tags": ["sklearn", "preprocessing"]
+  },
+  {
+    "id": "gradient-descent:momentum-mechanism",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "mcq",
+    "front": "How does Momentum accelerate convergence inside narrow ravines compared to vanilla SGD?",
+    "options": [
+      "Opposite oscillations across steep walls cancel in the moving average while consistent valley-floor slopes accumulate",
+      "It replaces the gradient with an exact second-order inverse Hessian matrix",
+      "It divides learning rate uniformly by batch standard deviation",
+      "It freezes noisy parameters after warmup iterations"
+    ],
+    "correctIndex": 0,
+    "back": "Opposite oscillations across steep walls cancel in the moving average while consistent valley-floor slopes accumulate",
+    "explanation": "Exponential averaging v_t = β v_{t-1} + (1 - β) g_t damps sign-flipping cross-valley steps while building speed down the trough.",
+    "tags": ["momentum", "optimizers"]
+  },
+  {
+    "id": "gradient-descent:rmsprop-scaling",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "cloze",
+    "front": "RMSProp divides coordinate updates by √(s_t) + ε, where s_t tracks an exponentially weighted moving average of _____ gradients.",
+    "back": "squared",
+    "explanation": "Accumulating g_t² automatically shrinks step size along consistently high-gradient coordinates and boosts flat ones.",
+    "tags": ["rmsprop", "adaptive-lr"]
+  },
+  {
+    "id": "gradient-descent:adam-bias-correction",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "recall",
+    "front": "Why does Adam divide its moment estimates m_t and v_t by (1 − β₁^t) and (1 − β₂^t)?",
+    "back": "Because m_0 and v_0 start at zero, early moving averages are biased toward zero; dividing by (1 − β^t) removes that startup shrinkage on early steps.",
+    "explanation": "For example with β₂ = 0.999 and t = 1, un-corrected v_1 only retains 0.001 · g_1² before bias correction rescales it back to g_1².",
+    "tags": ["adam", "bias-correction"]
+  },
+  {
+    "id": "gradient-descent:adamw-difference",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "mcq",
+    "front": "What distinguishes AdamW from classic L2-regularized Adam?",
+    "options": [
+      "AdamW decouples weight decay from the adaptive second-moment denominator √v_t + ε",
+      "AdamW drops bias correction to reduce optimizer state memory",
+      "AdamW computes exact finite-difference curvatures per step",
+      "AdamW disables first-moment smoothing on embedding layers"
+    ],
+    "correctIndex": 0,
+    "back": "AdamW decouples weight decay from the adaptive second-moment denominator √v_t + ε",
+    "explanation": "Adding L2 decay into the gradient divides regularization strength unevenly by coordinate gradient history; decoupling keeps weight decay proportional.",
+    "tags": ["adamw", "regularization"]
+  },
+  {
+    "id": "gradient-descent:update-rule",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "cloze",
+    "front": "The basic gradient descent update rule subtracts scaled slope from parameters: θ_{t+1} = θ_t _____.",
+    "back": "- η ∇_θ L(θ_t)",
+    "explanation": "In NumPy or PyTorch pseudocode this reads `theta = theta - lr * grad`.",
+    "tags": ["equation", "sgd"]
+  },
+  {
+    "id": "gradient-descent:saddle-points",
+    "lessonSlug": "classical-ml/02-gradient-descent",
+    "type": "recall",
+    "front": "Why are saddle points generally a bigger slowdown in high-dimensional neural training than local minima?",
+    "back": "A true local minimum requires positive curvature along every coordinate simultaneously, whereas mixed-curvature saddle points occur exponentially more often and flatten gradients along some axes.",
+    "explanation": "Momentum and adaptive moment scaling help optimizers escape flat saddle plateaus along negative-curvature directions.",
+    "tags": ["loss-surface", "saddle-points"]
+  }
+]
+

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "self-attention:static-embedding-limit",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "recall",
+    "front": "Why do static lookup word embeddings fail on 'The animal didn't cross the street because it was too tired/wide'?",
+    "back": "A lookup table assigns the exact same vector to 'it' regardless of surrounding words, whereas self-attention shifts what 'it' attends to based on context like 'tired' versus 'wide'.",
+    "explanation": "Contextual representations dynamically blend information from the relevant antecedent token vector.",
+    "tags": ["intuition", "polysemy"]
+  },
+  {
+    "id": "self-attention:qkv-roles",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "mcq",
+    "front": "In Query-Key-Value attention, which vector advertises what a token represents so queries from other tokens can match it?",
+    "options": [
+      "Key (K)",
+      "Query (Q)",
+      "Value (V)",
+      "Causal Mask (M)"
+    ],
+    "correctIndex": 0,
+    "back": "Key (K)",
+    "explanation": "Each token emits a Query ('what am I looking for?'), a Key ('what do I advertise?'), and a Value ('what content do I pass forward if selected?').",
+    "tags": ["qkv", "architecture"]
+  },
+  {
+    "id": "self-attention:scaling-variance",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "recall",
+    "front": "Why does scaled dot-product attention divide Q K^T by √(d_k) before applying softmax?",
+    "back": "For independent zero-mean unit-variance entries in q and k, their dot product has variance d_k; dividing by √(d_k) restores unit variance so softmax avoids vanishing gradients.",
+    "explanation": "When d_k = 128, unscaled logits often reach ±30, pushing softmax into flat saturated tails with nearly zero gradient.",
+    "tags": ["math", "gradients"]
+  },
+  {
+    "id": "self-attention:attention-equation",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "cloze",
+    "front": "Scaled dot-product attention computes weights and output via softmax((Q K^T) / _____ + M) V.",
+    "back": "sqrt(d_k)",
+    "explanation": "Scaling by the square root of head dimension d_k precedes optional causal masking M and row-wise softmax.",
+    "tags": ["equation", "qkv"]
+  },
+  {
+    "id": "self-attention:causal-mask-value",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "mcq",
+    "front": "Why must masked future positions (j > i) in causal GPT attention be set to −∞ rather than 0 before softmax?",
+    "options": [
+      "exp(−∞) = 0 guarantees zero probability mass on future tokens, whereas exp(0) = 1 leaks future context",
+      "Setting logits to zero triggers divide-by-zero in Q @ K.T",
+      "Negative infinity is needed to keep key vectors orthogonal during backprop",
+      "Setting logits to zero reduces complexity from quadratic to linear"
+    ],
+    "correctIndex": 0,
+    "back": "exp(−∞) = 0 guarantees zero probability mass on future tokens, whereas exp(0) = 1 leaks future context",
+    "explanation": "Softmax exponentiates logits before normalizing; a zero logit retains positive e^0 = 1 weight and leaks future token information.",
+    "tags": ["causal-mask", "gpt"]
+  },
+  {
+    "id": "self-attention:path-length",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "cloze",
+    "front": "Whereas recurrent networks propagate signals across n tokens in O(n) sequential steps, self-attention connects any token pair in _____ sequential path length.",
+    "back": "O(1)",
+    "explanation": "One matrix multiply Q K^T evaluates direct compatibility between every pair of positions simultaneously.",
+    "tags": ["complexity", "transformers"]
+  },
+  {
+    "id": "self-attention:row-sum-property",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "recall",
+    "front": "What invariant does every row of softmax(scores) satisfy, and what does that mean geometrically for each output token vector?",
+    "back": "Each row contains non-negative weights summing to 1, making every contextual output token a convex weighted blend of the Value vectors.",
+    "explanation": "Checking `np.allclose(weights.sum(axis=-1), 1.0)` verifies row-wise normalization along the key dimension.",
+    "tags": ["softmax", "invariants"]
+  },
+  {
+    "id": "self-attention:projection-shapes",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "recall",
+    "front": "If input X has shape (n, d_model) and head matrices W_Q, W_K have shape (d_model, d_k), what shape is Q K^T and why?",
+    "back": "(n, n), because multiplying Q of shape (n, d_k) by K^T of shape (d_k, n) produces pairwise scores from every query token to every key token.",
+    "explanation": "That n × n matrix drives the quadratic O(n^2) memory and compute cost with sequence length n.",
+    "tags": ["shapes", "complexity"]
+  },
+  {
+    "id": "self-attention:gqa-advantage",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "mcq",
+    "front": "Why do modern LLMs such as Llama 3 and Qwen use Grouped-Query Attention (GQA) during inference?",
+    "options": [
+      "Sharing fewer Key/Value heads across groups of Query heads shrinks KV-cache memory bandwidth while keeping multi-head expressivity",
+      "It removes the causal mask requirement during autoregressive generation",
+      "It computes dot products without learned projection weights",
+      "It replaces row-wise softmax with L2 normalization"
+    ],
+    "correctIndex": 0,
+    "back": "Sharing fewer Key/Value heads across groups of Query heads shrinks KV-cache memory bandwidth while keeping multi-head expressivity",
+    "explanation": "Autoregressive decoding is memory-bandwidth bound by KV-cache reads, so reducing cached K/V heads greatly accelerates generation.",
+    "tags": ["gqa", "inference"]
+  },
+  {
+    "id": "self-attention:flash-attention",
+    "lessonSlug": "nlp-transformers/04-self-attention",
+    "type": "cloze",
+    "front": "FlashAttention produces the exact same mathematical output faster by tiling Q, K, and V blocks inside fast GPU _____ without materializing the n × n matrix in HBM.",
+    "back": "SRAM",
+    "explanation": "Online softmax over SRAM tiles avoids expensive round-trips reading and writing the full n × n matrix to high-bandwidth memory.",
+    "tags": ["flash-attention", "systems"]
+  }
+]
+

@@ -1,0 +1,89 @@
+[
+  {
+    "id": "backpropagation:reverse-mode-advantage",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "recall",
+    "front": "Why does deep learning use reverse-mode autodiff (backpropagation) instead of forward-mode differentiation or finite differences?",
+    "back": "Because neural losses map millions of weights θ to one scalar loss L(θ), reverse mode computes exact gradients for ALL parameters in a single backward sweep.",
+    "explanation": "Forward-mode differentiation or finite differences would need one pass per parameter (~100M passes for a 100M-parameter model).",
+    "tags": ["autodiff", "complexity"]
+  },
+  {
+    "id": "backpropagation:fan-out-accumulation",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "mcq",
+    "front": "In a scalar autograd Value class, why must backward closures use `+=` instead of `=` when updating parent gradients?",
+    "options": [
+      "Because a variable used in multiple branches must sum partial derivatives across all consumer paths",
+      "Because `=` converts Python floats into integers",
+      "Because addition guarantees strictly positive weight updates",
+      "Because topological sorting skips intermediate bias terms"
+    ],
+    "correctIndex": 0,
+    "back": "Because a variable used in multiple branches must sum partial derivatives across all consumer paths",
+    "explanation": "By the multivariate chain rule, ∂L/∂v = ∑ (∂L/∂u)(∂u/∂v), which also explains why PyTorch requires `zero_grad()` between steps.",
+    "tags": ["chain-rule", "autograd"]
+  },
+  {
+    "id": "backpropagation:topological-order",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "cloze",
+    "front": "Before executing `_backward()` closures from scalar output loss back to inputs, nodes must be ordered using reverse _____ sort.",
+    "back": "topological",
+    "explanation": "Sorting the DAG topologically ensures every downstream consumer finishes accumulating out.grad before propagating upstream.",
+    "tags": ["dag", "graph"]
+  },
+  {
+    "id": "backpropagation:mul-rule",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "recall",
+    "front": "For a multiplication node z = a * b receiving upstream gradient ∂L/∂z, what gradients flow back to parents a and b?",
+    "back": "Parent a receives b * (∂L/∂z) and parent b receives a * (∂L/∂z): multiplication swaps the other operand onto the upstream gradient.",
+    "explanation": "At z = a * b, local derivative ∂z/∂a = b and ∂z/∂b = a.",
+    "tags": ["chain-rule", "local-gradients"]
+  },
+  {
+    "id": "backpropagation:add-rule",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "recall",
+    "front": "How does an addition gate z = a + b route the upstream gradient ∂L/∂z during backpropagation?",
+    "back": "It acts as a gradient distributor, passing ∂L/∂z equally (+= 1.0 * out.grad) to both parent operands a and b.",
+    "explanation": "Because ∂(a + b)/∂a = 1 and ∂(a + b)/∂b = 1, upstream gradient flows straight through addition gates unchanged.",
+    "tags": ["chain-rule", "local-gradients"]
+  },
+  {
+    "id": "backpropagation:relu-gate",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "mcq",
+    "front": "What happens to an upstream gradient flowing backward through y = relu(z) when z <= 0?",
+    "options": [
+      "The upstream gradient is multiplied by 0, blocking gradient flow to upstream weights",
+      "The upstream gradient flips sign to −out.grad",
+      "The gradient passes unchanged as +1.0 * out.grad",
+      "The bias gradient doubles automatically"
+    ],
+    "correctIndex": 0,
+    "back": "The upstream gradient is multiplied by 0, blocking gradient flow to upstream weights",
+    "explanation": "For out = max(0, z), local slope is 1 if out > 0 and 0 otherwise, which can create 'dead ReLU' units if pre-activations stay negative.",
+    "tags": ["relu", "activations"]
+  },
+  {
+    "id": "backpropagation:seed-grad",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "cloze",
+    "front": "At the start of `loss.backward()`, the root scalar loss node initializes its own gradient to _____ before iterating backwards.",
+    "back": "1.0",
+    "explanation": "The derivative of the loss with respect to itself (∂L/∂L) is always 1.0.",
+    "tags": ["autograd", "initialization"]
+  },
+  {
+    "id": "backpropagation:zero-grad-why",
+    "lessonSlug": "deep-learning/04-backpropagation",
+    "type": "recall",
+    "front": "Why must you call optimizer.zero_grad() before the next backward pass in PyTorch?",
+    "back": "Because PyTorch accumulates (`+=`) gradients across backward calls by default; skipping zero_grad() blends stale previous-batch gradients into the new step.",
+    "explanation": "Accumulation makes fan-out graphs and gradient accumulation across micro-batches work cleanly, but requires explicit zeroing per optimizer step.",
+    "tags": ["pytorch", "training-loop"]
+  }
+]
+

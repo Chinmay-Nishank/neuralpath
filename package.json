@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Open-source interactive Machine Learning, Deep Learning, and AI learning platform from first principles to modern transformers.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "npx velite build && concurrently -n velite,next \"npx velite watch\" \"next dev\"",
     "build": "npx velite build && next build",
     "postbuild": "npx pagefind --site .next/server/app --output-path public/_pagefind",

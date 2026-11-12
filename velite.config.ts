@@ -1,9 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { defineConfig, defineCollection, s } from 'velite';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import { loadCardsFromDirectory } from './src/lib/cards';
 
 const MODULE_IDS = [
   'foundations',
@@ -71,6 +74,24 @@ export default defineConfig({
     clean: true,
   },
   collections: { lessons },
+  prepare(data) {
+    const cardsDir = path.join(process.cwd(), 'content', 'cards');
+    const cards = loadCardsFromDirectory(cardsDir);
+    const knownLessons = new Set(data.lessons.map((l) => l.routeId));
+    for (const card of cards) {
+      if (!knownLessons.has(card.lessonSlug)) {
+        throw new Error(
+          `Spaced-repetition card "${card.id}" references unknown lessonSlug "${card.lessonSlug}"`
+        );
+      }
+    }
+  },
+  complete() {
+    const cardsDir = path.join(process.cwd(), 'content', 'cards');
+    const cards = loadCardsFromDirectory(cardsDir);
+    const outPath = path.join(process.cwd(), '.velite', 'cards.json');
+    fs.writeFileSync(outPath, `${JSON.stringify(cards, null, 2)}\n`, 'utf8');
+  },
   mdx: {
     remarkPlugins: [remarkGfm, remarkMath],
     rehypePlugins: [

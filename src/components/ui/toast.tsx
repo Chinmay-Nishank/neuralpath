@@ -9,6 +9,10 @@ export interface ToastItem {
   title: string;
   description?: string;
   variant?: 'info' | 'success' | 'error';
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 interface ToastContextValue {
@@ -77,6 +81,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <p className="font-medium text-primary">{item.title}</p>
                 {item.description && (
                   <p className="mt-0.5 text-xs text-primary-secondary">{item.description}</p>
+                )}
+                {item.action && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      item.action?.onClick();
+                      dismiss(item.id);
+                    }}
+                    className="mt-2 inline-flex min-h-[32px] items-center rounded-sm border border-strong bg-surface px-2.5 py-1 text-xs font-medium text-accent hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {item.action.label}
+                  </button>
                 )}
               </div>
               <button

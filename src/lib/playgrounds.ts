@@ -25,9 +25,9 @@ export const PLAYGROUNDS: PlaygroundMeta[] = [
   },
   {
     slug: 'neural-network',
-    title: 'Neural Network Playground (TensorFlow.js)',
+    title: '3D Neural Network & Surface Playground',
     category: 'Deep Learning',
-    description: 'Add hidden layers and neurons, pick activations, and watch live in-browser neural training bend decision boundaries.',
+    description: 'Build multi-layer perceptrons and watch live TensorFlow.js training bend the 3D probability decision manifold.',
     lessonUrl: '/learn/deep-learning/01-perceptron-to-mlp',
   },
   {
@@ -46,9 +46,9 @@ export const PLAYGROUNDS: PlaygroundMeta[] = [
   },
   {
     slug: 'attention',
-    title: 'Self-Attention (Q, K, V) Explorer',
+    title: '3D Self-Attention (Q, K, V) Skyline',
     category: 'Transformers',
-    description: 'Inspect scaled dot-product scores, pronoun disambiguation, temperature scaling, and GPT causal masking.',
+    description: 'Inspect 3D scaled dot-product attention towers, pronoun disambiguation, temperature scaling, and GPT causal masking.',
     lessonUrl: '/learn/nlp-transformers/04-self-attention',
   },
   {

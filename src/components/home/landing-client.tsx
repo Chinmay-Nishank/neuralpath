@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Compass, Cpu, BookOpen, Sparkles } from 'lucide-react';
+import { ArrowRight, Brain, CheckCircle2, Compass, Cpu, BookOpen, Sparkles } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ const LazyViz = dynamic(() => import('@/components/mdx/viz').then((m) => m.Viz),
   loading: () => <VizSkeleton height={460} />,
 });
 import { useProgress } from '@/components/progress/progress-provider';
+import { useReview } from '@/components/review/review-provider';
 import type { ModuleMeta } from '@/lib/content';
 import type { LearningPathId } from '@/lib/progress';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ export function LandingClient({
   totalLessons: number;
 }) {
   const { state, setActivePath } = useProgress();
+  const { hydrated: reviewHydrated, dueCount } = useReview();
   const [previewViz, setPreviewViz] = React.useState<'gradient-descent' | 'attention'>(
     'gradient-descent'
   );
@@ -72,39 +74,62 @@ export function LandingClient({
   return (
     <div className="space-y-20 pb-20">
       {/* Hero */}
-      <section className="border-b border-hairline bg-surface/60">
+      <section className="relative overflow-hidden border-b border-hairline bg-surface/60 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(29,78,216,0.08),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(96,165,250,0.08),rgba(11,14,20,0))]">
         <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.9fr] lg:py-20">
           <div className="space-y-6">
-            <Badge variant="accent">Open-Source ML, Deep Learning &amp; AI Curriculum</Badge>
-            <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl lg:text-[3.25rem] lg:leading-[1.12]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Interactive ML, Deep Learning &amp; AI Platform</span>
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-primary sm:text-5xl lg:text-[3.25rem] lg:leading-[1.12]">
               From &ldquo;what is a model?&rdquo; to training and deploying transformers.
             </h1>
             <p className="max-w-xl text-base leading-relaxed text-primary-secondary sm:text-lg">
               {totalLessons} interactive lessons across 10 structured modules. Every concept pairs
-              clear first-principles explanations with live visualizations, in-browser Python, and
+              clear first-principles explanations with live 3D visualizations, in-browser Python, and
               mastery checks—zero local setup required.
             </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Link
-                href={
-                  state.lastVisitedLesson
-                    ? `/learn/${state.lastVisitedLesson}`
-                    : '/learn/foundations/01-what-is-a-model'
-                }
-                prefetch={false}
-                className={buttonVariants({ size: 'lg', variant: 'primary' })}
-              >
-                <span>{state.lastVisitedLesson ? 'Continue learning' : 'Start learning'}</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-              <Link
-                href="/onboarding"
-                prefetch={false}
-                className={buttonVariants({ size: 'lg', variant: 'outline' })}
-              >
-                <Compass className="h-4 w-4 text-accent" aria-hidden="true" />
-                <span>Take the skill quiz</span>
-              </Link>
+            <div className="rounded-xl border border-hairline bg-surface/90 p-4 sm:p-5 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={
+                    state.lastVisitedLesson
+                      ? `/learn/${state.lastVisitedLesson}`
+                      : '/learn/foundations/01-what-is-a-model'
+                  }
+                  prefetch={false}
+                  className={cn(buttonVariants({ size: 'lg', variant: 'primary' }), 'min-h-[44px] shadow-sm')}
+                >
+                  <span>{state.lastVisitedLesson ? 'Continue learning' : 'Start learning'}</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                <Link
+                  href="/placement"
+                  prefetch={false}
+                  className={cn(buttonVariants({ size: 'lg', variant: 'outline' }), 'min-h-[44px]')}
+                >
+                  <Compass className="h-4 w-4 text-accent" aria-hidden="true" />
+                  <span>Take Diagnostic Quiz</span>
+                </Link>
+              </div>
+              <div className="mt-3 flex min-h-[28px] flex-wrap items-center justify-between gap-2 border-t border-hairline pt-2.5 text-xs">
+                <span className="text-primary-secondary">
+                  {state.lastVisitedLesson
+                    ? `Resume: ${state.lastVisitedLesson}`
+                    : 'Interactive Python, 3D visualizations & active recall'}
+                </span>
+                {reviewHydrated && dueCount > 0 && (
+                  <Link
+                    href="/review"
+                    className="inline-flex items-center gap-1.5 font-medium text-accent hover:underline"
+                  >
+                    <Brain className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>
+                      {dueCount} {dueCount === 1 ? 'card' : 'cards'} due
+                    </span>
+                  </Link>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2 pt-2 text-xs text-primary-secondary">
               <span className="flex items-center gap-1.5">
@@ -113,7 +138,7 @@ export function LandingClient({
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-hidden="true" />
-                11+ Interactive Labs
+                11+ Interactive 3D Labs
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-hidden="true" />
@@ -124,6 +149,32 @@ export function LandingClient({
 
           <div className="flex justify-center lg:justify-end">
             <HeroNeuralNet />
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Metric Cards Bar */}
+      <section className="mx-auto max-w-[1280px] px-4 sm:px-6 -mt-10 sm:-mt-12 relative z-10">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 rounded-xl border border-hairline/80 bg-surface/95 p-4 sm:p-5 shadow-md backdrop-blur-md">
+          <div className="space-y-1">
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-primary tabular-nums">71</div>
+            <div className="text-xs text-primary-secondary font-medium">Interactive Lessons</div>
+            <div className="text-[11px] text-primary-muted">10 structured modules</div>
+          </div>
+          <div className="space-y-1 border-l border-hairline/60 pl-3 sm:pl-4">
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-accent tabular-nums">11</div>
+            <div className="text-xs text-primary-secondary font-medium">3D &amp; 2D Playgrounds</div>
+            <div className="text-[11px] text-primary-muted">Real-time WebGL graphics</div>
+          </div>
+          <div className="space-y-1 border-l border-hairline/60 pl-3 sm:pl-4">
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-success tabular-nums">0</div>
+            <div className="text-xs text-primary-secondary font-medium">Installations Needed</div>
+            <div className="text-[11px] text-primary-muted">In-browser Pyodide Python</div>
+          </div>
+          <div className="space-y-1 border-l border-hairline/60 pl-3 sm:pl-4">
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-primary tabular-nums">FSRS</div>
+            <div className="text-xs text-primary-secondary font-medium">Spaced Repetition</div>
+            <div className="text-[11px] text-primary-muted">Long-term active recall</div>
           </div>
         </div>
       </section>
@@ -151,8 +202,8 @@ export function LandingClient({
               <Card
                 key={p.id}
                 className={cn(
-                  'flex flex-col justify-between transition-colors',
-                  active && 'border-accent ring-1 ring-accent'
+                  'flex flex-col justify-between rounded-xl transition-all duration-200 hover:-translate-y-1 hover:shadow-md',
+                  active ? 'border-accent ring-1 ring-accent bg-accent-soft/10' : 'hover:border-strong'
                 )}
               >
                 <CardHeader>
@@ -246,33 +297,47 @@ export function LandingClient({
             const completedInMod = Object.keys(state.completedLessons).filter((id) =>
               id.startsWith(`${mod.id}/`)
             ).length;
+            const pct = Math.round((completedInMod / mod.lessonCount) * 100);
             return (
               <Link
                 key={mod.id}
                 href={mod.firstLessonUrl}
                 prefetch={false}
-                className="group rounded-md border border-hairline bg-surface p-5 transition-colors hover:border-accent"
+                className="group rounded-xl border border-hairline bg-surface p-5 transition-all duration-200 hover:-translate-y-1 hover:border-accent hover:shadow-md flex flex-col justify-between"
               >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold tabular-nums text-accent">
-                    Module {String(mod.order).padStart(2, '0')}
-                  </span>
-                  <Badge variant="neutral">{mod.level}</Badge>
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold tabular-nums text-accent">
+                      Module {String(mod.order).padStart(2, '0')}
+                    </span>
+                    <Badge variant="neutral">{mod.level}</Badge>
+                  </div>
+                  <h3 className="text-base font-semibold text-primary group-hover:text-accent transition-colors">
+                    {mod.title}
+                  </h3>
+                  <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-primary-secondary">
+                    {mod.description}
+                  </p>
                 </div>
-                <h3 className="text-base font-semibold text-primary group-hover:text-accent">
-                  {mod.title}
-                </h3>
-                <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-primary-secondary">
-                  {mod.description}
-                </p>
-                <div className="mt-4 flex items-center justify-between border-t border-hairline pt-3 text-[11px] tabular-nums text-primary-muted">
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" aria-hidden="true" />
-                    {mod.lessonCount} lessons · {mod.estimatedHours}h
-                  </span>
-                  <span>
-                    {completedInMod}/{mod.lessonCount} done
-                  </span>
+
+                <div className="mt-4 border-t border-hairline pt-3 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] tabular-nums text-primary-muted">
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="h-3 w-3" aria-hidden="true" />
+                      {mod.lessonCount} lessons · {mod.estimatedHours}h
+                    </span>
+                    <span className="font-medium text-primary">
+                      {completedInMod}/{mod.lessonCount} done
+                    </span>
+                  </div>
+                  {completedInMod > 0 && (
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-subtle">
+                      <div
+                        className="h-full bg-accent transition-all duration-300"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               </Link>
             );

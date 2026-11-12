@@ -1,12 +1,26 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { VizShell } from './viz-shell';
 import { Select } from '@/components/ui/select';
 import { Toggle } from '@/components/ui/toggle';
 import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+
+const Attention3DCanvas = dynamic(
+  () => import('./attention-3d').then((m) => m.Attention3DCanvas),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[360px] w-full items-center justify-center rounded-sm border border-hairline bg-[#0B0E14] font-mono text-xs text-[#A6B0C3]">
+        Loading 3D attention skyline...
+      </div>
+    ),
+  }
+);
 
 type PresetId = 'pronoun-tired' | 'pronoun-wide' | 'causal-code';
 
@@ -109,6 +123,7 @@ function softmaxRow(logits: number[]): number[] {
 }
 
 export function AttentionExplorerViz({ defaultPreset = 'pronoun-tired' }: { defaultPreset?: PresetId }) {
+  const [viewMode, setViewMode] = React.useState<'3d' | '2d'>('3d');
   const [preset, setPreset] = React.useState<PresetId>(defaultPreset);
   const [causalMask, setCausalMask] = React.useState(false);
   const [temperature, setTemperature] = React.useState(1.0);
@@ -146,6 +161,7 @@ export function AttentionExplorerViz({ defaultPreset = 'pronoun-tired' }: { defa
   const activeQueryToken = tokens[selectedQueryIdx] ?? '';
 
   const handleReset = () => {
+    setViewMode('3d');
     setPreset(defaultPreset);
     setCausalMask(false);
     setTemperature(1.0);
@@ -180,6 +196,29 @@ export function AttentionExplorerViz({ defaultPreset = 'pronoun-tired' }: { defa
       }
       controls={
         <div className="space-y-4">
+          <div
+            role="group"
+            aria-label="Attention visualization mode"
+            className="grid grid-cols-2 gap-1 rounded-sm border border-hairline bg-subtle p-1"
+          >
+            <Button
+              size="sm"
+              variant={viewMode === '3d' ? 'outline' : 'ghost'}
+              aria-pressed={viewMode === '3d'}
+              onClick={() => setViewMode('3d')}
+            >
+              3D Skyline
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === '2d' ? 'outline' : 'ghost'}
+              aria-pressed={viewMode === '2d'}
+              onClick={() => setViewMode('2d')}
+            >
+              2D Heatmap
+            </Button>
+          </div>
+
           <Select
             label="Sentence Preset"
             value={preset}
@@ -238,7 +277,16 @@ export function AttentionExplorerViz({ defaultPreset = 'pronoun-tired' }: { defa
         </div>
       }
     >
-      <div className="overflow-x-auto">
+      {viewMode === '3d' ? (
+        <Attention3DCanvas
+          tokens={tokens}
+          probs={probs}
+          causalMask={causalMask}
+          selectedQueryIdx={selectedQueryIdx}
+          onSelectQuery={setSelectedQueryIdx}
+        />
+      ) : (
+        <div className="overflow-x-auto">
         <div className="min-w-[460px] space-y-2">
           <div className="flex items-center justify-between text-xs text-primary-secondary">
             <span>Rows = Query tokens (click row to inspect)</span>
@@ -312,6 +360,7 @@ export function AttentionExplorerViz({ defaultPreset = 'pronoun-tired' }: { defa
           </div>
         </div>
       </div>
+      )}
     </VizShell>
   );
 }

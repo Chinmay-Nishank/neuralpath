@@ -7,7 +7,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
   "font-src 'self' data: https://cdn.jsdelivr.net",
   "img-src 'self' data: blob:",
-  "connect-src 'self' https://cdn.jsdelivr.net",
+  "connect-src 'self' https://cdn.jsdelivr.net https://plausible.io https://us.i.posthog.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -23,6 +23,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: process.env.DOCKER_BUILD === '1' ? 'standalone' : undefined,
+  outputFileTracingIncludes: {
+    '/*': [
+      './content/modules.yaml',
+      './content/glossary.yaml',
+      './content/cards/**/*',
+      './.velite/**/*',
+    ],
+  },
   transpilePackages: ['three', '@react-three/drei'],
   experimental: {
     inlineCss: true,
@@ -56,6 +64,12 @@ const nextConfig: NextConfig = {
         source: '/cheatsheets/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
         ],
       },
     ];

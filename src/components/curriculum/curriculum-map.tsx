@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Lock, Unlock, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ArrowRight, Brain, CheckCircle2, Lock, Unlock, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useProgress } from '@/components/progress/progress-provider';
+import { useReview } from '@/components/review/review-provider';
 import type { ModuleMeta } from '@/lib/content';
 import { cn } from '@/lib/utils';
+import { PathwaySelector } from './pathway-selector';
+import { getPathwayById } from '@/lib/pathways';
 
 export interface GraphLessonNode {
   routeId: string;
@@ -30,18 +33,33 @@ export function CurriculumMap({
   modules: ModuleMeta[];
   lessons: GraphLessonNode[];
 }) {
-  const { state } = useProgress();
+  const { state, hydrated } = useProgress();
+  const { hydrated: reviewHydrated, dueCount, dueByLesson } = useReview();
+  const [selectedPathwayId, setSelectedPathwayId] = React.useState<string>('all');
   const [levelFilter, setLevelFilter] = React.useState<'all' | 'beginner' | 'practitioner' | 'researcher'>('all');
   const [moduleFilter, setModuleFilter] = React.useState<string>('all');
   const [zoom, setZoom] = React.useState(1);
 
+  const activePathway = React.useMemo(() => {
+    return selectedPathwayId !== 'all' ? getPathwayById(selectedPathwayId) : undefined;
+  }, [selectedPathwayId]);
+
+  const resumeLesson = React.useMemo(() => {
+    if (state.lastVisitedLesson) {
+      const visited = lessons.find((l) => l.routeId === state.lastVisitedLesson);
+      if (visited) return visited;
+    }
+    return lessons.find((l) => !state.completedLessons[l.routeId]) ?? lessons[0];
+  }, [lessons, state.lastVisitedLesson, state.completedLessons]);
+
   const filteredLessons = React.useMemo(() => {
     return lessons.filter((l) => {
+      if (activePathway && !activePathway.modules.includes(l.module)) return false;
       if (levelFilter !== 'all' && l.level !== levelFilter) return false;
       if (moduleFilter !== 'all' && l.module !== moduleFilter) return false;
       return true;
     });
-  }, [lessons, levelFilter, moduleFilter]);
+  }, [lessons, activePathway, levelFilter, moduleFilter]);
 
   const getStatus = (lesson: GraphLessonNode): 'completed' | 'available' | 'locked' => {
     if (state.completedLessons[lesson.routeId]) return 'completed';
@@ -72,6 +90,59 @@ export function CurriculumMap({
 
   return (
     <div className="space-y-8">
+      {resumeLesson && (
+        <section
+          aria-label="Continue learning"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-hairline bg-surface p-4 shadow-sm sm:p-5"
+        >
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="accent">Continue Learning</Badge>
+              {hydrated && reviewHydrated && dueCount > 0 && (
+                <Link
+                  href="/review"
+                  className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent hover:underline"
+                >
+                  <Brain className="h-3 w-3" aria-hidden="true" />
+                  <span>
+                    {dueCount} {dueCount === 1 ? 'card' : 'cards'} due
+                  </span>
+                </Link>
+              )}
+            </div>
+            <h2 className="text-base font-semibold text-primary sm:text-lg">
+              {resumeLesson.title}
+            </h2>
+            <p className="text-xs text-primary-secondary">{resumeLesson.summary}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hydrated && reviewHydrated && dueCount > 0 && (
+              <Link
+                href="/review"
+                className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'min-h-[44px]')}
+              >
+                <Brain className="h-4 w-4 text-accent" aria-hidden="true" />
+                <span>Review ({dueCount})</span>
+              </Link>
+            )}
+            <Link
+              href={resumeLesson.url}
+              className={cn(buttonVariants({ variant: 'primary', size: 'md' }), 'min-h-[44px]')}
+            >
+              <span>Resume Lesson</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Interactive Pathway Selector */}
+      <PathwaySelector
+        selectedPathwayId={selectedPathwayId}
+        onSelectPathway={setSelectedPathwayId}
+        lessons={lessons}
+      />
+
       <div className="flex flex-wrap items-center justify-end gap-2">
           <select
             aria-label="Filter by difficulty level"
@@ -235,7 +306,7 @@ export function CurriculumMap({
                         href={lesson.url}
                         prefetch={false}
                         className={cn(
-                          'flex flex-col justify-between rounded-md border bg-surface p-4 transition-colors hover:border-accent',
+                          'flex flex-col justify-between rounded-xl border bg-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:border-accent',
                           status === 'completed' ? 'border-success/40' : 'border-hairline'
                         )}
                       >
@@ -245,6 +316,11 @@ export function CurriculumMap({
                               Lesson {mod.order}.{lesson.order}
                             </span>
                             <div className="flex items-center gap-1.5">
+                              {reviewHydrated && (dueByLesson[lesson.routeId] ?? 0) > 0 && (
+                                <Badge variant="accent">
+                                  {dueByLesson[lesson.routeId]} due
+                                </Badge>
+                              )}
                               <Badge variant="neutral">{lesson.level}</Badge>
                               {status === 'completed' && (
                                 <CheckCircle2 className="h-4 w-4 text-success" aria-label="Completed" />

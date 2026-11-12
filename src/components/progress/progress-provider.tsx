@@ -6,10 +6,12 @@ import {
   type ConsentStatus,
   type LearningPathId,
   type LearningState,
+  type ReviewRating,
   calculateStreak,
   getTodayIsoDate,
   loadLearningState,
   saveLearningState,
+  scheduleNextReview,
 } from '@/lib/progress';
 
 interface ProgressContextValue {
@@ -23,6 +25,8 @@ interface ProgressContextValue {
   toggleLessonCompleted: (routeId: string) => void;
   toggleBookmark: (routeId: string) => void;
   saveNote: (routeId: string, content: string) => void;
+  recordReview: (termKey: string, rating: ReviewRating) => void;
+  importLearningState: (nextState: LearningState) => void;
   setAnalyticsConsent: (status: ConsentStatus) => void;
   toggleFontSerif: () => void;
 }
@@ -38,6 +42,8 @@ const ProgressContext = React.createContext<ProgressContextValue>({
   toggleLessonCompleted: () => {},
   toggleBookmark: () => {},
   saveNote: () => {},
+  recordReview: () => {},
+  importLearningState: () => {},
   setAnalyticsConsent: () => {},
   toggleFontSerif: () => {},
 });
@@ -196,6 +202,34 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     [updateState, syncRemote]
   );
 
+  const recordReview = React.useCallback(
+    (termKey: string, rating: ReviewRating) => {
+      const today = getTodayIsoDate();
+      updateState((prev) => {
+        const nextCard = scheduleNextReview(prev.reviewSchedule[termKey], rating, today);
+        const activityDates = prev.activityDates.includes(today)
+          ? prev.activityDates
+          : [...prev.activityDates, today];
+        return {
+          ...prev,
+          activityDates,
+          reviewSchedule: {
+            ...prev.reviewSchedule,
+            [termKey]: nextCard,
+          },
+        };
+      });
+    },
+    [updateState]
+  );
+
+  const importLearningState = React.useCallback(
+    (nextState: LearningState) => {
+      updateState(() => nextState);
+    },
+    [updateState]
+  );
+
   const setAnalyticsConsent = React.useCallback(
     (analyticsConsent: ConsentStatus) => {
       updateState((prev) => ({ ...prev, analyticsConsent }));
@@ -224,6 +258,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       toggleLessonCompleted,
       toggleBookmark,
       saveNote,
+      recordReview,
+      importLearningState,
       setAnalyticsConsent,
       toggleFontSerif,
     }),
@@ -238,6 +274,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       toggleLessonCompleted,
       toggleBookmark,
       saveNote,
+      recordReview,
+      importLearningState,
       setAnalyticsConsent,
       toggleFontSerif,
     ]

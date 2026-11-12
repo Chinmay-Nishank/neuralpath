@@ -1,5 +1,16 @@
-const CACHE_NAME = 'neuralpath-static-v1';
-const OFFLINE_URLS = ['/', '/curriculum', '/offline', '/glossary', '/manifest.webmanifest', '/icon.svg'];
+const CACHE_NAME = 'neuralpath-static-v2';
+const OFFLINE_URLS = [
+  '/',
+  '/curriculum',
+  '/lab',
+  '/placement',
+  '/practice',
+  '/review',
+  '/offline',
+  '/glossary',
+  '/manifest.webmanifest',
+  '/icon.svg',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

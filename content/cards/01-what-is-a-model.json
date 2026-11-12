@@ -1,0 +1,89 @@
+[
+  {
+    "id": "what-is-a-model:definition",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "recall",
+    "front": "What is a machine learning model f(x; θ), and how does learning differ from traditional rule-based programming?",
+    "back": "A model is a parameterized mathematical function f(x; θ) with tunable weights θ. Instead of humans hand-coding fixed rules, training uses (x, y) examples to adjust θ automatically.",
+    "explanation": "Traditional code hard-codes `if price > 500`, whereas ML discovers the mapping rule directly from experience.",
+    "tags": ["intuition", "fundamentals"]
+  },
+  {
+    "id": "what-is-a-model:params-vs-hyperparams",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "mcq",
+    "front": "Which quantity is updated automatically by the optimizer during training rather than configured manually beforehand?",
+    "options": [
+      "Model weights w and biases b",
+      "Learning rate η",
+      "Train/test split ratio",
+      "Maximum tree depth"
+    ],
+    "correctIndex": 0,
+    "back": "Model weights w and biases b",
+    "explanation": "Parameters θ are learned from data during gradient updates; learning rate, depth, and split ratio are hyperparameters set before training.",
+    "tags": ["parameters", "hyperparameters"]
+  },
+  {
+    "id": "what-is-a-model:loss-function",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "cloze",
+    "front": "In supervised learning, the scalar _____ function L(θ) scores how wrong current predictions y_hat are compared to ground truth y.",
+    "back": "loss",
+    "explanation": "Minimizing average per-example error over the dataset drives parameter updates toward accurate predictions.",
+    "tags": ["loss-function", "supervised"]
+  },
+  {
+    "id": "what-is-a-model:erm-objective",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "recall",
+    "front": "In Empirical Risk Minimization, what are the three core ingredients required to train a supervised learning system?",
+    "back": "Data (X, y) pairs, a loss function L(θ) measuring prediction error, and an optimizer that adjusts θ to shrink loss without overfitting noise.",
+    "explanation": "Every ML pipeline from linear regression to large transformers instantiates these same three pillars.",
+    "tags": ["erm", "supervised"]
+  },
+  {
+    "id": "what-is-a-model:mse-effect",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "recall",
+    "front": "Why does Mean Squared Error l(y_hat, y) = (y_hat - y)^2 penalize large prediction errors much more heavily than small ones?",
+    "back": "Squaring the residual grows quadratically with error magnitude, so doubling an error multiplies its penalty by four.",
+    "explanation": "This makes MSE smooth and differentiable everywhere while remaining sensitive to extreme outliers.",
+    "tags": ["mse", "loss-function"]
+  },
+  {
+    "id": "what-is-a-model:affine-formula",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "cloze",
+    "front": "For input matrix x, weight matrix W, and bias vector b, the core linear prediction layer in NumPy is written y_hat = _____.",
+    "back": "x @ W + b",
+    "explanation": "Matrix multiplication followed by bias offset is the fundamental building block across linear models and neural networks.",
+    "tags": ["linear-model", "numpy"]
+  },
+  {
+    "id": "what-is-a-model:training-loop",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "mcq",
+    "front": "In what order does a single gradient-based training iteration update a linear model?",
+    "options": [
+      "Compute predictions -> evaluate loss -> compute gradients (dw, db) -> subtract lr * grad",
+      "Subtract lr * grad -> compute loss -> reset data targets -> initialize biases",
+      "Evaluate test set R^2 -> freeze weights -> recompute hyperparameters -> clear loss",
+      "Randomize targets -> average coefficients -> apply bias correction"
+    ],
+    "correctIndex": 0,
+    "back": "Compute predictions -> evaluate loss -> compute gradients (dw, db) -> subtract lr * grad",
+    "explanation": "Forward prediction measures error, gradients reveal slope direction, and descending updates θ toward lower MSE.",
+    "tags": ["training-loop"]
+  },
+  {
+    "id": "what-is-a-model:generalization-goal",
+    "lessonSlug": "foundations/01-what-is-a-model",
+    "type": "recall",
+    "front": "Why must an optimizer lower training loss L(θ) without simply memorizing accidental noise in the training examples?",
+    "back": "Because the goal of modeling is accurate generalization to unseen inputs rather than zero error on memorized training quirks.",
+    "explanation": "Fitting noise degrades out-of-sample test performance even while training error drops.",
+    "tags": ["generalization"]
+  }
+]
+

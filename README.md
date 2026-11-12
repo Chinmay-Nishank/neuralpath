@@ -1,24 +1,30 @@
 # NeuralPath
 
-**NeuralPath** is an open-source interactive Machine Learning, Deep Learning, and AI learning platform designed to take a learner with basic programming knowledge from *"what is a model?"* to training and deploying modern Transformers, RAG assistants, RL agents, and production ML pipelines.
+**NeuralPath** is an open-source interactive Machine Learning, Deep Learning, and AI learning platform designed to take a learner with basic programming knowledge from *"what is a model?"* to training and deploying modern Transformers, RAG systems, RL agents, and production ML pipelines.
 
 ## Highlights
 - **71 Structured MDX Lessons Across 10 Modules:** Foundations, Classical ML, Deep Learning Core, Computer Vision, Sequence Models & Transformers, Generative AI (Flow Matching, DiT, RAG, LoRA, MCP, Eval), Reinforcement Learning (MDP, Q-Learning, PPO, DPO, GRPO), MLOps, AI Safety & Mechanistic Interpretability (SAEs), and 5 guided Capstones.
-- **11+ Interactive Visualizations:** Gradient Descent 2D/3D Surface, Decision Boundary Playground, TensorFlow.js Neural Network Playground, Backprop Computational Graph, Convolution Explorer (with custom image upload), Self-Attention Q/K/V Explorer, 3D Embedding Space (PCA/t-SNE/UMAP), BPE Tokenizer, Bias-Variance Slider, Diffusion vs. Flow Matching, and RL GridWorld.
+- **5 Guided Specialization Pathways (Scratch to Advanced):** Zero to Hero (Complete AI Journey), Generative AI & LLMs, Computer Vision & Multimodal, RL & Post-Training Alignment, and Production MLOps with automated progress tracking and milestone badges.
+- **Diagnostic Placement & Skill Assessment (`/placement`):** 10-tier diagnostic quiz assessing mathematical foundations, classical ML, deep learning, attention mechanisms, and modern alignment with instant feedback and tailored pathway recommendations.
+- **From-Scratch ML Algorithms Lab (`/lab`):** Step-by-step implementations in pure Python & NumPy with zero black-box libraries: Vectorized Linear Regression, Logistic Regression BCE, 35-line Micro-Autograd Engine, 2-Layer MLP with Analytical Backprop, Scaled Dot-Product Attention, and BPE Tokenizer.
+- **Interactive 3D & 2D Visualizations:** 3D Gradient Descent Loss Surfaces, 3D Neural Network & Probability Manifold, 3D Self-Attention (Q, K, V) Skyline, 3D Embedding Space (PCA/t-SNE/UMAP), Decision Boundary Playground, Backprop Graph, Convolution Explorer, BPE Tokenizer, Bias-Variance Demo, Diffusion vs. Flow Matching, and RL GridWorld.
+- **Spaced Repetition & Cognitive Science Tools:** Pure FSRS Spaced Repetition (`/review`), Interleaved Mixed Practice (`/practice`), Feynman Teach-Back draft studio, and a calm Focus Study Timer.
+- **Curriculum + Google Web Search:** Instant Ctrl+K Pagefind full-text curriculum search paired with targeted Google Web Search (ArXiv, PyTorch Docs, scikit-learn, Papers With Code) without needing any third-party LLM keys.
 - **Sandboxed In-Browser Python (`Pyodide`):** Edit and run NumPy, pandas, and scikit-learn directly in a network-isolated Web Worker (`public/workers/pyodide.worker.js`), plus one-click `.ipynb` / Open in Colab for PyTorch examples.
-- **Zero-Setup Local Progress + Optional Cloud Sync:** Tracks streaks, quiz scores, bookmarks, and lesson notes in `localStorage`, with optional NextAuth + PostgreSQL sync via Prisma.
-- **Production Hardened:** Self-hosted variable fonts, Pagefind static full-text search, dynamic OpenGraph images, PDF cheatsheets per module, CSP headers, rate-limited Groq AI Tutor route, Storybook design system, Vitest, Playwright + axe-core, and Lighthouse CI.
+- **Zero-Setup Local Progress + Optional Cloud Sync:** Tracks streaks, quiz scores, FSRS cards, bookmarks, and lesson notes in `localStorage` with JSON export/restore, plus optional NextAuth + PostgreSQL sync via Prisma.
 
 ## Architecture
 
 ```text
 Browser (Next.js 15 App Router + React 19)
  ├── Static SSG Lesson Pages ◄── Velite MDX Compiler (content/lessons/**/*.mdx)
- ├── Dynamic Split <Viz />    ◄── Three.js / D3 / TensorFlow.js / Canvas
+ ├── From-Scratch ML Lab     ◄── Pure Python / NumPy Algorithms + Live Pyodide Sandbox
+ ├── Diagnostic Placement    ◄── Multi-Tier Skill Assessment + Adaptive Recommendations
+ ├── Dynamic 3D/2D <Viz />    ◄── Three.js / D3 / TensorFlow.js / Canvas
  ├── <CodeRunner />           ◄── Lazy Monaco Editor ──► Sandboxed Pyodide Web Worker
- ├── Cmd+K Search             ◄── Pagefind Static Index (prod) / Velite Metadata (dev)
- ├── Progress & Notes         ◄── localStorage ──(optional)──► /api/progress ──► Postgres (Prisma)
- └── AI Tutor Sidebar         ◄── /api/tutor (Rate Limit + Zod) ──► Groq API (openai/gpt-oss-120b)
+ ├── Cmd+K & /search          ◄── Pagefind Static Index + Targeted Google Web Search
+ ├── /review & /practice      ◄── FSRS Spaced Repetition + Cross-Module Interleaving
+ └── Progress & Notes         ◄── localStorage ──(optional)──► /api/progress ──► Postgres (Prisma)
 ```
 
 ## Quick Start
@@ -32,7 +38,7 @@ Browser (Next.js 15 App Router + React 19)
    ```bash
    cp .env.example .env.local
    ```
-   All optional services (`GROQ_API_KEY`, `DATABASE_URL`, `AUTH_GITHUB_*`) degrade gracefully when unset.
+   All optional services (`DATABASE_URL`, `AUTH_GITHUB_*`) degrade gracefully when omitted—no API keys are required to build or run the site.
 3. **Generate module PDF cheatsheets & run dev server**
    ```bash
    npm run generate:cheatsheets
@@ -47,14 +53,18 @@ Browser (Next.js 15 App Router + React 19)
    npm run build
    ```
 
-## Storybook Design System
-```bash
-npm run storybook
-```
-
 ## Docker Deployment
 ```bash
 docker build -t neuralpath .
-docker run -p 3000:3000 --env-file .env.local neuralpath
+docker run -p 3000:3000 neuralpath
 ```
 
+Or launch cleanly with Docker Compose:
+```bash
+docker compose up --build
+```
+
+## Vercel / Node Deployment
+- Uses [`vercel.json`](vercel.json) and `postinstall` (`prisma generate`) so a fresh `npm ci && npm run build` works automatically on Vercel, Railway, or Render without manual steps or external API keys.
+- Optionally set `NEXT_PUBLIC_SITE_URL`, `DATABASE_URL`, and `AUTH_GITHUB_*` in your hosting environment variables; all optional integrations degrade gracefully when unset.
+- Health check endpoint: `GET /api/health` returns `{ ok: true, status: "healthy", lessons, cards, searchEngine: "google" }`.

@@ -1,28 +1,21 @@
 'use client';
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
 import { ModuleSidebar, type SidebarModuleGroup } from './module-sidebar';
 import { TableOfContents, type TocHeading } from './table-of-contents';
 import { LessonFooterActions } from './lesson-feedback';
+import { FeynmanTeachBack } from './feynman-teachback';
+import { StudyTimer } from './study-timer';
 import { ReadingProgressBar } from './reading-progress-bar';
 import { useProgress } from '@/components/progress/progress-provider';
 import { cn } from '@/lib/utils';
-
-const AiTutorDrawer = dynamic(
-  () => import('./ai-tutor-drawer').then((m) => m.AiTutorDrawer),
-  { ssr: false }
-);
 
 export function LessonShell({
   modules,
   routeId,
   slugPath,
   lessonTitle,
-  lessonSummary,
-  lessonLevel,
   lessonObjectives,
-  lessonVizTypes,
   toc,
   headerSlot,
   children,
@@ -32,7 +25,7 @@ export function LessonShell({
   routeId: string;
   slugPath: string;
   lessonTitle: string;
-  lessonSummary: string;
+  lessonSummary?: string;
   lessonLevel?: string;
   lessonObjectives?: string[];
   lessonVizTypes?: string[];
@@ -42,11 +35,6 @@ export function LessonShell({
   afterProseSlot: React.ReactNode;
 }) {
   const { state } = useProgress();
-  const [tutorOpen, setTutorOpen] = React.useState(false);
-  const lessonSections = React.useMemo(
-    () => toc.map((item) => item.title),
-    [toc]
-  );
 
   return (
     <>
@@ -65,10 +53,17 @@ export function LessonShell({
             >
               {children}
             </div>
+            <div data-pagefind-ignore="all" className="mt-8 space-y-4">
+              <StudyTimer />
+              <FeynmanTeachBack
+                routeId={routeId}
+                objectives={lessonObjectives ?? []}
+              />
+            </div>
             <LessonFooterActions
               routeId={routeId}
               slugPath={slugPath}
-              onOpenTutor={() => setTutorOpen(true)}
+              lessonTitle={lessonTitle}
             />
             {afterProseSlot}
           </div>
@@ -77,24 +72,9 @@ export function LessonShell({
         <TableOfContents
           toc={toc}
           routeId={routeId}
-          onOpenTutor={() => setTutorOpen(true)}
+          lessonTitle={lessonTitle}
         />
       </div>
-
-      {tutorOpen && (
-        <AiTutorDrawer
-          open={tutorOpen}
-          onClose={() => setTutorOpen(false)}
-          lessonTitle={lessonTitle}
-          lessonSummary={lessonSummary}
-          lessonRouteId={routeId}
-          lessonLevel={lessonLevel}
-          lessonObjectives={lessonObjectives}
-          lessonSections={lessonSections}
-          lessonVizTypes={lessonVizTypes}
-        />
-      )}
     </>
   );
 }
-

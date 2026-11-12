@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Bookmark, BookmarkCheck, Sparkles, NotebookPen, Type } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Bookmark, BookmarkCheck, Globe, NotebookPen, Type } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useProgress } from '@/components/progress/progress-provider';
+import { buildGoogleSearchUrl } from '@/lib/google-search';
 import { cn } from '@/lib/utils';
 
 export interface TocHeading {
@@ -15,11 +16,11 @@ export interface TocHeading {
 export function TableOfContents({
   toc,
   routeId,
-  onOpenTutor,
+  lessonTitle,
 }: {
   toc: TocHeading[];
   routeId: string;
-  onOpenTutor: () => void;
+  lessonTitle: string;
 }) {
   const { state, toggleBookmark, saveNote, toggleFontSerif } = useProgress();
   const [activeId, setActiveId] = React.useState<string>('');
@@ -66,14 +67,18 @@ export function TableOfContents({
       <div className="sticky top-20 max-h-[calc(100vh-6rem)] space-y-5 overflow-y-auto pl-2">
         {/* Quick Lesson Tools */}
         <div className="space-y-2 rounded-md border border-hairline bg-surface p-3">
-          <Button
-            size="sm"
-            className="w-full justify-start"
-            onClick={onOpenTutor}
+          <a
+            href={buildGoogleSearchUrl(lessonTitle, 'web', true)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ size: 'sm', variant: 'primary' }),
+              'w-full justify-start'
+            )}
           >
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Ask AI Tutor</span>
-          </Button>
+            <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Search on Google</span>
+          </a>
           <div className="grid grid-cols-2 gap-1.5">
             <Button
               size="sm"

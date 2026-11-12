@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { CheckCircle2, XCircle, HelpCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle2, XCircle, HelpCircle, RotateCcw, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProgress } from '@/components/progress/progress-provider';
+import { buildGoogleSearchUrl } from '@/lib/google-search';
 import { trackEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
@@ -206,6 +207,19 @@ export function Quiz({ lessonId, title = 'Check Your Understanding', questions }
                       {correct ? 'Correct. ' : `Expected: ${q.type === 'mcq' && q.options ? q.options[Number(q.answer)] : String(q.answer)}. `}
                     </span>
                     <span className="text-primary-secondary">{q.explanation}</span>
+                    {!correct && (
+                      <div>
+                        <a
+                          href={buildGoogleSearchUrl(q.prompt, 'web', true)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex min-h-[28px] items-center gap-1.5 rounded-sm border border-strong bg-surface px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          <Globe className="h-3 w-3 text-accent" aria-hidden="true" />
+                          <span>Search on Google why</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
